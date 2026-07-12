@@ -24,9 +24,17 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _boot() async {
-    await Future.delayed(const Duration(milliseconds: 2200));
+    await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    sl<AdService>().maybeShowAppOpenAd(
+    final adService = sl<AdService>();
+
+    final started = DateTime.now();
+    while (!adService.isAppOpenAdLoaded &&
+        DateTime.now().difference(started).inSeconds < 5) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    adService.maybeShowAppOpenAd(
       onComplete: () {
         if (mounted) replaceWithFade(context, const MainMenuScreen());
       },

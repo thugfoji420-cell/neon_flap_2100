@@ -86,6 +86,7 @@ class _GameScreenState extends State<GameScreen> {
     final score = _controller.score;
     final best = sl<CoinService>().bestScore;
     sl<LeaderboardService>().submit(score, widget.mode, sl<OwnedCharactersService>().selectedId);
+    sl<AdService>().showInterstitialAd();
     await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
     await pushWithFade(
@@ -131,73 +132,79 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
+      body: Column(
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (_) => _game.flap(),
-            child: GameWidget(game: _game),
-          ),
-          // HUD (transparent, taps fall through to the game).
-          IgnorePointer(
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        AnimatedBuilder(
-                          animation: _controller,
-                          builder: (_, __) => Text(
-                            '${_controller.score}',
-                            style: NeonTextStyle.title.copyWith(fontSize: 40),
-                          ),
-                        ),
-                        AnimatedBuilder(
-                          animation: _controller,
-                          builder: (_, __) => Row(
+          Expanded(
+            child: Stack(
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (_) => _game.flap(),
+                  child: GameWidget(game: _game),
+                ),
+                // HUD (transparent, taps fall through to the game).
+                IgnorePointer(
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Icon(Icons.circle,
-                                  size: 14, color: NeonPalette.yellow),
-                              const SizedBox(width: 6),
-                              Text('${_controller.collectedCoins}',
-                                  style: NeonTextStyle.heading),
+                              AnimatedBuilder(
+                                animation: _controller,
+                                builder: (_, __) => Text(
+                                  '${_controller.score}',
+                                  style: NeonTextStyle.title.copyWith(fontSize: 40),
+                                ),
+                              ),
+                              AnimatedBuilder(
+                                animation: _controller,
+                                builder: (_, __) => Row(
+                                  children: [
+                                    const Icon(Icons.circle,
+                                        size: 14, color: NeonPalette.yellow),
+                                    const SizedBox(width: 6),
+                                    Text('${_controller.collectedCoins}',
+                                        style: NeonTextStyle.heading),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                // Pause button (interactive).
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 12,
+                  right: 16,
+                  child: _PauseButton(onTap: _togglePause),
+                ),
+                // Countdown overlay.
+                if (_count > 0)
+                  Center(
+                    child: Text('$_count',
+                        style: NeonTextStyle.title.copyWith(fontSize: 120)),
+                  ),
+                // Pause overlay.
+                if (_paused)
+                  Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: HoloPausePanel(
+                        onResume: _togglePause,
+                        onQuit: _quit,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          // Pause button (interactive).
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 12,
-            right: 16,
-            child: _PauseButton(onTap: _togglePause),
-          ),
-          // Countdown overlay.
-          if (_count > 0)
-            Center(
-              child: Text('$_count',
-                  style: NeonTextStyle.title.copyWith(fontSize: 120)),
-            ),
-          // Pause overlay.
-          if (_paused)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: HoloPausePanel(
-                  onResume: _togglePause,
-                  onQuit: _quit,
-                ),
-              ),
-            ),
-          // Banner ad at the bottom (gameplay only).
+          // Banner ad below the game.
           const _BannerAdSlot(),
         ],
       ),
@@ -270,24 +277,13 @@ class _BannerAdSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ads = sl<AdService>();
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: AnimatedBuilder(
-        animation: ads,
-        builder: (_, __) {
-          if (!ads.isBannerLoaded || ads.bannerAd == null) {
-            return const SizedBox.shrink();
-          }
-          return Container(
-            color: NeonPalette.backgroundDeep,
-            alignment: Alignment.center,
-            height: 50,
-            child: AdWidget(ad: ads.bannerAd!),
-          );
-        },
-      ),
+    final banner = ads.bannerAd;
+    if (banner == null) {
+      return const SizedBox.shrink();
+    }
+    return SizedBox(
+      height: 50,
+      child: AdWidget(ad: banner),
     );
   }
 }

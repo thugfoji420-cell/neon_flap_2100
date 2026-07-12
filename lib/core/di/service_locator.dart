@@ -56,6 +56,10 @@ Future<void> setupServiceLocator() async {
   });
 
   sl.registerSingleton<VibrationService>(VibrationService(settings));
-  sl.registerSingleton<AdService>(AdService()..init());
-  sl.registerSingleton<BillingService>(BillingService(coins)..init());
+  final adService = AdService();
+  await adService.init();
+  sl.registerSingleton<AdService>(adService);
+  final billingService = BillingService(coins);
+  await billingService.init();
+  sl.registerSingleton<BillingService>(billingService);
 }

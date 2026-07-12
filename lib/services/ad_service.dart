@@ -9,6 +9,7 @@ import 'package:neon_flap_2100/core/constants/app_constants.dart';
 /// * Banner Ads are loaded on demand and displayed only during gameplay.
 /// * Rewarded Ads drive the reward screen; rewards are only granted inside
 ///   [showRewardedAd]'s [onEarnedReward] callback (after the user earns it).
+/// * Interstitial Ads are shown when returning to the main menu from a game.
 ///
 /// Test ad unit ids from [AppConstants] are used in debug builds.
 class AdService extends ChangeNotifier {
@@ -23,6 +24,10 @@ class AdService extends ChangeNotifier {
   RewardedAd? _rewardedAd;
   bool _rewardedLoading = false;
   bool get isRewardedReady => _rewardedAd != null;
+  String? _currentRewardedAdUnitId;
+
+  InterstitialAd? _interstitialAd;
+  DateTime? _lastInterstitialTime;
 
   /// Must be called once before any ad operation.
   Future<void> init() async {
@@ -31,7 +36,7 @@ class AdService extends ChangeNotifier {
       RequestConfiguration(
         testDeviceIds: <String>[
           'EMULATOR',
-          '357521091831371',
+          '2AA02B5D374E70B1F1EDD9B4489D84B8',
         ],
       ),
     );
@@ -56,27 +61,69 @@ class AdService extends ChangeNotifier {
   /// Shows the app open ad if it is already loaded.
   /// If not loaded it returns immediately (and [onComplete]
   /// fires at once) so the caller can proceed straight to the main menu.
+  bool get isAppOpenAdLoaded => _appOpenAd != null;
+
   void maybeShowAppOpenAd({VoidCallback? onComplete}) {
     final ad = _appOpenAd;
     if (ad == null) {
       onComplete?.call(); // Unavailable: continue immediately.
       return;
     }
+    _appOpenAd = null;
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (d) {
         d.dispose();
-        _appOpenAd = null;
         _loadAppOpenAd();
         onComplete?.call();
       },
       onAdFailedToShowFullScreenContent: (d, _) {
         d.dispose();
-        _appOpenAd = null;
         _loadAppOpenAd();
         onComplete?.call();
       },
     );
     ad.show();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Interstitial Ad
+  // ---------------------------------------------------------------------------
+
+  void _loadInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: AppConstants.interstitialAdUnitId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) => _interstitialAd = ad,
+        onAdFailedToLoad: (_) => _interstitialAd = null,
+      ),
+    );
+  }
+
+  /// Shows an interstitial ad if available and not shown recently.
+  /// Returns true if an ad was shown, false otherwise.
+  Future<bool> showInterstitialAd({VoidCallback? onComplete}) async {
+    final ad = _interstitialAd;
+    if (ad == null) {
+      _loadInterstitialAd();
+      onComplete?.call();
+      return false;
+    }
+
+    final now = DateTime.now();
+    if (_lastInterstitialTime != null &&
+        now.difference(_lastInterstitialTime!).inSeconds < 5) {
+      onComplete?.call();
+      return false;
+    }
+
+    _interstitialAd = null;
+    _lastInterstitialTime = now;
+    _loadInterstitialAd();
+
+    await ad.show();
+    onComplete?.call();
+    return true;
   }
 
   // ---------------------------------------------------------------------------
@@ -119,12 +166,16 @@ class AdService extends ChangeNotifier {
   /// [onEarnedReward] fires only after the user actually earns the reward.
   /// [onComplete] always fires when the ad flow ends (success or failure) so
   /// the reward screen can advance regardless.
+  /// [adUnitId] allows overriding the default rewarded ad unit.
   void showRewardedAd({
     required void Function(RewardItem reward) onEarnedReward,
     required VoidCallback onComplete,
+    String? adUnitId,
   }) {
+    final unitId = adUnitId ?? AppConstants.rewardedAdUnitId;
     final show = (RewardedAd ad) {
       _rewardedAd = null;
+      _currentRewardedAdUnitId = null;
       ad.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (d) {
           d.dispose();
@@ -141,14 +192,15 @@ class AdService extends ChangeNotifier {
       ad.show(onUserEarnedReward: (_, reward) => onEarnedReward(reward));
     };
 
-    if (_rewardedAd != null) {
+    if (_rewardedAd != null && _currentRewardedAdUnitId == unitId) {
       show(_rewardedAd!);
       return;
     }
     if (_rewardedLoading) return;
     _rewardedLoading = true;
+    _currentRewardedAdUnitId = unitId;
     RewardedAd.load(
-      adUnitId: AppConstants.rewardedAdUnitId,
+      adUnitId: unitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
@@ -157,6 +209,7 @@ class AdService extends ChangeNotifier {
         },
         onAdFailedToLoad: (_) {
           _rewardedLoading = false;
+          _currentRewardedAdUnitId = null;
           onComplete();
         },
       ),
@@ -168,6 +221,7 @@ class AdService extends ChangeNotifier {
     _appOpenAd?.dispose();
     disposeBanner();
     _rewardedAd?.dispose();
+    _interstitialAd?.dispose();
     super.dispose();
   }
 }

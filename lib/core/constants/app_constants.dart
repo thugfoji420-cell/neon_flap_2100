@@ -17,8 +17,12 @@ class AppConstants {
       'ca-app-pub-4514520183755342/6809202498';
   static const String rewardedAdUnitId =
       'ca-app-pub-4514520183755342/7113444507';
+  static const String rewardedAdUnitId2 =
+      'ca-app-pub-4514520183755342/1765749050';
   static const String appOpenAdUnitId =
       'ca-app-pub-4514520183755342/8159345556';
+  static const String interstitialAdUnitId =
+      'ca-app-pub-4514520183755342/2631686702';
 
   /// Base URL used for the privacy / terms documents required by the stores.
   static const String privacyPolicyUrl =

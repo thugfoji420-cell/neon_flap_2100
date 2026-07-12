@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:neon_flap_2100/core/constants/app_constants.dart';
 import 'package:neon_flap_2100/core/di/service_locator.dart';
 import 'package:neon_flap_2100/core/theme/app_theme.dart';
 import 'package:neon_flap_2100/models/difficulty_config.dart';
@@ -41,10 +42,11 @@ class _RewardScreenState extends State<RewardScreen> {
   bool _processing = false;
   int _adsWatched = 0;
 
-  Future<bool> _watchOneAd() {
+  Future<bool> _watchOneAd({String? adUnitId}) {
     final completer = Completer<bool>();
     var earned = false;
     sl<AdService>().showRewardedAd(
+      adUnitId: adUnitId,
       onEarnedReward: (_) => earned = true,
       onComplete: () => completer.complete(earned),
     );
@@ -74,9 +76,9 @@ class _RewardScreenState extends State<RewardScreen> {
   Future<void> _watchOne() async {
     if (_processing) return;
     setState(() => _processing = true);
-    final earned = await _watchOneAd();
+    final earned = await _watchOneAd(adUnitId: AppConstants.rewardedAdUnitId);
     if (!mounted) return;
-    await _finish(earned ? 1.5 : 1);
+    await _finish(earned ? 2 : 1);
   }
 
   Future<void> _watchThree() async {
@@ -85,12 +87,12 @@ class _RewardScreenState extends State<RewardScreen> {
     var earnedCount = 0;
     for (var i = 0; i < 3; i++) {
       if (!mounted) return;
-      final earned = await _watchOneAd();
+      final earned = await _watchOneAd(adUnitId: AppConstants.rewardedAdUnitId2);
       if (earned) earnedCount++;
       setState(() => _adsWatched = i + 1);
     }
     if (!mounted) return;
-    await _finish(earnedCount == 3 ? 2.0 : 1);
+    await _finish(earnedCount == 3 ? 5 : 1);
   }
 
   @override
@@ -128,7 +130,7 @@ class _RewardScreenState extends State<RewardScreen> {
                  const Text('CHOOSE REWARD', style: NeonTextStyle.heading),
                  const SizedBox(height: 16),
                 NeonButton(
-                  label: 'WATCH 1 AD  ·  1.5x COINS',
+                  label: 'WATCH 1 AD  ·  2x COINS',
                   color: NeonPalette.green,
                   enabled: !_processing,
                   onPressed: _watchOne,
@@ -137,7 +139,7 @@ class _RewardScreenState extends State<RewardScreen> {
                 NeonButton(
                   label: _processing && _adsWatched > 0
                       ? 'WATCH 3 ADS  ·  ${_adsWatched}/3'
-                      : 'WATCH 3 ADS  ·  2x COINS',
+                      : 'WATCH 3 ADS  ·  5x COINS',
                   color: NeonPalette.cyan,
                   enabled: !_processing,
                   onPressed: _watchThree,

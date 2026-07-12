@@ -6,6 +6,7 @@ import 'package:neon_flap_2100/routing/route_transitions.dart';
 import 'package:neon_flap_2100/screens/game_screen.dart';
 import 'package:neon_flap_2100/screens/run_result.dart';
 import 'package:neon_flap_2100/services/achievement_service.dart';
+import 'package:neon_flap_2100/services/ad_service.dart';
 import 'package:neon_flap_2100/services/audio_service.dart';
 import 'package:neon_flap_2100/services/coin_service.dart';
 import 'package:neon_flap_2100/services/owned_characters_service.dart';
@@ -46,7 +47,11 @@ class _GameOverScreenState extends State<GameOverScreen> {
     );
   }
 
-  void _toMenu() => Navigator.of(context).popUntil((r) => r.isFirst);
+  Future<void> _toMenu() async {
+    await sl<AdService>().showInterstitialAd();
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
 
   @override
   Widget build(BuildContext context) {
