@@ -14,11 +14,11 @@ class AppConstants {
   /// Google AdMob test identifiers. Replace with production ids before release.
   /// Banner appears only during gameplay; rewarded drives the reward screen.
   static const String bannerAdUnitId =
-      'ca-app-pub-3940256099942544/6300978111';
+      'ca-app-pub-4514520183755342/6809202498';
   static const String rewardedAdUnitId =
       'ca-app-pub-3940256099942544/5224354917';
   static const String appOpenAdUnitId =
-      'ca-app-pub-3940256099942544/3419835294';
+      'ca-app-pub-4514520183755342/8159345556';
 
   /// Base URL used for the privacy / terms documents required by the stores.
   static const String privacyPolicyUrl =

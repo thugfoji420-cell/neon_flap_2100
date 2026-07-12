@@ -51,9 +51,9 @@ class _RewardScreenState extends State<RewardScreen> {
     return completer.future;
   }
 
-  Future<void> _finish(int multiplier) async {
+  Future<void> _finish(double multiplier) async {
     if (!mounted) return;
-    final gained = widget.earnedCoins * multiplier;
+    final gained = (widget.earnedCoins * multiplier).round();
     await sl<CoinService>().addCoins(gained);
     if (multiplier > 1) sl<AudioService>().playSfx(Sfx.rewardReceived);
     await pushWithFade(
@@ -76,7 +76,7 @@ class _RewardScreenState extends State<RewardScreen> {
     setState(() => _processing = true);
     final earned = await _watchOneAd();
     if (!mounted) return;
-    await _finish(earned ? 2 : 1);
+    await _finish(earned ? 1.5 : 1);
   }
 
   Future<void> _watchThree() async {
@@ -90,7 +90,7 @@ class _RewardScreenState extends State<RewardScreen> {
       setState(() => _adsWatched = i + 1);
     }
     if (!mounted) return;
-    await _finish(earnedCount == 3 ? 5 : 1);
+    await _finish(earnedCount == 3 ? 2.0 : 1);
   }
 
   @override
@@ -127,21 +127,21 @@ class _RewardScreenState extends State<RewardScreen> {
                  const SizedBox(height: 28),
                  const Text('CHOOSE REWARD', style: NeonTextStyle.heading),
                  const SizedBox(height: 16),
-                 NeonButton(
-                   label: 'WATCH 1 AD  ·  2x COINS',
-                   color: NeonPalette.green,
-                   enabled: !_processing,
-                   onPressed: _watchOne,
-                 ),
-                 const SizedBox(height: 12),
-                 NeonButton(
-                   label: _processing && _adsWatched > 0
-                       ? 'WATCH 3 ADS  ·  ${_adsWatched}/3'
-                       : 'WATCH 3 ADS  ·  5x COINS',
-                   color: NeonPalette.cyan,
-                   enabled: !_processing,
-                   onPressed: _watchThree,
-                 ),
+                NeonButton(
+                  label: 'WATCH 1 AD  ·  1.5x COINS',
+                  color: NeonPalette.green,
+                  enabled: !_processing,
+                  onPressed: _watchOne,
+                ),
+                const SizedBox(height: 12),
+                NeonButton(
+                  label: _processing && _adsWatched > 0
+                      ? 'WATCH 3 ADS  ·  ${_adsWatched}/3'
+                      : 'WATCH 3 ADS  ·  2x COINS',
+                  color: NeonPalette.cyan,
+                  enabled: !_processing,
+                  onPressed: _watchThree,
+                ),
                  const SizedBox(height: 12),
                  NeonButton(
                    label: 'CLOSE  ·  KEEP ${earned}',

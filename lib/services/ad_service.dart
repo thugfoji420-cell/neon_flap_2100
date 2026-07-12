@@ -5,8 +5,7 @@ import 'package:neon_flap_2100/core/constants/app_constants.dart';
 
 /// Wraps Google Mobile Ads.
 ///
-/// * App Open Ads are shown at most once per app session, only on the
-///   splash -> main menu transition (never during gameplay).
+/// * App Open Ads are shown at startup every time the app opens if loaded.
 /// * Banner Ads are loaded on demand and displayed only during gameplay.
 /// * Rewarded Ads drive the reward screen; rewards are only granted inside
 ///   [showRewardedAd]'s [onEarnedReward] callback (after the user earns it).
@@ -16,7 +15,6 @@ class AdService extends ChangeNotifier {
   AdService();
 
   AppOpenAd? _appOpenAd;
-  bool _appOpenShownThisSession = false;
 
   BannerAd? bannerAd;
   bool _bannerLoaded = false;
@@ -29,6 +27,14 @@ class AdService extends ChangeNotifier {
   /// Must be called once before any ad operation.
   Future<void> init() async {
     await MobileAds.instance.initialize();
+    await MobileAds.instance.updateRequestConfiguration(
+      RequestConfiguration(
+        testDeviceIds: <String>[
+          'EMULATOR',
+          '357521091831371',
+        ],
+      ),
+    );
     _loadAppOpenAd();
   }
 
@@ -47,20 +53,15 @@ class AdService extends ChangeNotifier {
     );
   }
 
-  /// Shows the app open ad once per session if it is already loaded.
-  /// If not loaded (or already shown) it returns immediately (and [onComplete]
+  /// Shows the app open ad if it is already loaded.
+  /// If not loaded it returns immediately (and [onComplete]
   /// fires at once) so the caller can proceed straight to the main menu.
   void maybeShowAppOpenAd({VoidCallback? onComplete}) {
-    if (_appOpenShownThisSession) {
-      onComplete?.call();
-      return;
-    }
     final ad = _appOpenAd;
     if (ad == null) {
       onComplete?.call(); // Unavailable: continue immediately.
       return;
     }
-    _appOpenShownThisSession = true;
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (d) {
         d.dispose();
