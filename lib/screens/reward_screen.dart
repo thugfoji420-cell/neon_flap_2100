@@ -41,6 +41,7 @@ class RewardScreen extends StatefulWidget {
 class _RewardScreenState extends State<RewardScreen> {
   bool _processing = false;
   int _adsWatched = 0;
+  bool _credited = false;
 
   Future<bool> _watchOneAd({String? adUnitId}) {
     final completer = Completer<bool>();
@@ -54,7 +55,8 @@ class _RewardScreenState extends State<RewardScreen> {
   }
 
   Future<void> _finish(double multiplier) async {
-    if (!mounted) return;
+    if (_credited || !mounted) return;
+    _credited = true;
     final gained = (widget.earnedCoins * multiplier).round();
     await sl<CoinService>().addCoins(gained);
     if (multiplier > 1) sl<AudioService>().playSfx(Sfx.rewardReceived);

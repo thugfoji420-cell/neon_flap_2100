@@ -34,10 +34,8 @@ class AdService extends ChangeNotifier {
     await MobileAds.instance.initialize();
     await MobileAds.instance.updateRequestConfiguration(
       RequestConfiguration(
-        testDeviceIds: <String>[
-          'EMULATOR',
-          '2AA02B5D374E70B1F1EDD9B4489D84B8',
-        ],
+        // Only the emulator is forced to test ads. Real devices serve live ads.
+        testDeviceIds: <String>['EMULATOR'],
       ),
     );
     _loadAppOpenAd();

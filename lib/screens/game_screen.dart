@@ -86,8 +86,6 @@ class _GameScreenState extends State<GameScreen> {
     final score = _controller.score;
     final best = sl<CoinService>().bestScore;
     sl<LeaderboardService>().submit(score, widget.mode, sl<OwnedCharactersService>().selectedId);
-    sl<AdService>().showInterstitialAd();
-    await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
     await pushWithFade(
       context,
@@ -277,13 +275,19 @@ class _BannerAdSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ads = sl<AdService>();
-    final banner = ads.bannerAd;
-    if (banner == null) {
-      return const SizedBox.shrink();
-    }
-    return SizedBox(
-      height: 50,
-      child: AdWidget(ad: banner),
+    // Rebuild when the banner finishes loading/fails so it actually appears.
+    return AnimatedBuilder(
+      animation: ads,
+      builder: (_, __) {
+        final banner = ads.bannerAd;
+        if (banner == null) {
+          return const SizedBox.shrink();
+        }
+        return SizedBox(
+          height: 50,
+          child: AdWidget(ad: banner),
+        );
+      },
     );
   }
 }
