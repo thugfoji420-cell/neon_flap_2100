@@ -24,6 +24,15 @@ android {
 
     buildTypes {
         release {
+            // R8 is required so the ProGuard keep rules in proguard-rules.pro
+            // protect the WorkManager/Room classes that Google Mobile Ads
+            // initializes at startup.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
