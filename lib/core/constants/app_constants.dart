@@ -16,7 +16,7 @@ class AppConstants {
   static const String bannerAdUnitId =
       'ca-app-pub-4514520183755342/6809202498';
   static const String rewardedAdUnitId =
-      'ca-app-pub-3940256099942544/5224354917';
+      'ca-app-pub-4514520183755342/7113444507';
   static const String appOpenAdUnitId =
       'ca-app-pub-4514520183755342/8159345556';
 
