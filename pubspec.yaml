@@ -1,0 +1,33 @@
+name: neon_flap_2100
+description: "Neon Flap 2100 - A futuristic cyberpunk arcade flapper built with Flutter & Flame."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flame: ^1.24.0
+  get_it: ^8.0.3
+  provider: ^6.1.2
+  shared_preferences: ^2.3.2
+  audioplayers: ^6.1.0
+  google_mobile_ads: ^9.0.0
+  in_app_purchase: ^3.2.0
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/audio/
