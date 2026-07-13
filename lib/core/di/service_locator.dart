@@ -11,6 +11,7 @@ import 'package:neon_flap_2100/services/owned_characters_service.dart';
 import 'package:neon_flap_2100/services/settings_service.dart';
 import 'package:neon_flap_2100/services/storage_service.dart';
 import 'package:neon_flap_2100/services/vibration_service.dart';
+import 'package:neon_flap_2100/services/facebook_service.dart';
 
 /// Global service locator (GetIt). All services are registered as singletons
 /// and initialised once at startup for a single source of truth.
@@ -62,4 +63,8 @@ Future<void> setupServiceLocator() async {
   final billingService = BillingService(coins);
   await billingService.init();
   sl.registerSingleton<BillingService>(billingService);
+
+  final facebook = FacebookService(storage);
+  await facebook.init();
+  sl.registerSingleton<FacebookService>(facebook);
 }

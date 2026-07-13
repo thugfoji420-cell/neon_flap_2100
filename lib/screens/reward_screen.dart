@@ -156,7 +156,7 @@ class _RewardDialogState extends State<_RewardDialog> {
             const Text('CHOOSE REWARD', style: NeonTextStyle.heading),
             const SizedBox(height: 16),
             NeonButton(
-              label: 'WATCH 1 AD  ·  2x COINS',
+              label: '1 AD  ·  2X COINS',
               color: NeonPalette.green,
               enabled: !_processing,
               onPressed: _watchOne,
@@ -164,8 +164,8 @@ class _RewardDialogState extends State<_RewardDialog> {
             const SizedBox(height: 12),
             NeonButton(
               label: _processing && _adsWatched > 0
-                  ? 'WATCH 3 ADS  ·  ${_adsWatched}/3'
-                  : 'WATCH 3 ADS  ·  5x COINS',
+                  ? '3 ADS  ·  ${_adsWatched}/3'
+                  : '3 ADS  ·  5X COINS',
               color: NeonPalette.cyan,
               enabled: !_processing,
               onPressed: _watchThree,

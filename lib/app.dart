@@ -7,8 +7,6 @@ import 'package:neon_flap_2100/screens/splash_screen.dart';
 import 'package:neon_flap_2100/settings/settings_screen.dart';
 import 'package:neon_flap_2100/store/character_store_screen.dart';
 import 'package:neon_flap_2100/store/coin_shop_screen.dart';
-import 'package:neon_flap_2100/store/leaderboard_screen.dart';
-import 'package:neon_flap_2100/store/achievements_screen.dart';
 
 /// Root application widget. Configures the cyberpunk theme and declarative
 /// named routes for every screen.
@@ -40,8 +38,6 @@ class NeonFlapApp extends StatelessWidget {
         AppRoutes.characterStore: (_) => const CharacterStoreScreen(),
         AppRoutes.coinShop: (_) => const CoinShopScreen(),
         AppRoutes.settings: (_) => const SettingsScreen(),
-        AppRoutes.leaderboard: (_) => const LeaderboardScreen(),
-        AppRoutes.achievements: (_) => const AchievementsScreen(),
       },
     );
   }

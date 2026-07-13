@@ -45,4 +45,9 @@ class StorageKeys {
   static const String playerStats = 'nf_player_stats';
   static const String achievementProgress = 'nf_achievement_progress';
   static const String leaderboard = 'nf_leaderboard';
+  static const String facebookUserId = 'nf_facebook_user_id';
+  static const String facebookUserName = 'nf_facebook_user_name';
+  static const String facebookUserEmail = 'nf_facebook_user_email';
+  static const String facebookAccessToken = 'nf_facebook_access_token';
+  static const String facebookSyncTimestamp = 'nf_facebook_sync_timestamp';
 }
