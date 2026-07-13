@@ -46,6 +46,7 @@ class FacebookService extends ChangeNotifier {
 
   Future<void> init() async {
     await _loadUser();
+    await _verifyStoredSession();
   }
 
   Future<void> _loadUser() async {
@@ -63,6 +64,19 @@ class FacebookService extends ChangeNotifier {
       );
       notifyListeners();
     }
+  }
+
+  Future<void> _verifyStoredSession() async {
+    if (_user?.accessToken == null) return;
+
+    try {
+      final token = await FacebookAuth.instance.accessToken;
+      if (token != null) {
+        return;
+      }
+    } catch (_) {}
+
+    await _clearUser();
   }
 
   Future<bool> login() async {
