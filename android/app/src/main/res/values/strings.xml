@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Neon Flap 2100</string>
-    <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>
-    <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
+    <string name="facebook_app_id">1013863091243656</string>
+    <string name="fb_login_protocol_scheme">fb1013863091243656</string>
+    <string name="facebook_client_token">6e2a4a8072546292a7cf541ebd92806c</string>
 </resources>
