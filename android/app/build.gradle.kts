@@ -22,20 +22,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../neon_flap_release.jks")
+            storePassword = "android123"
+            keyAlias = "neon_flap_release"
+            keyPassword = "android123"
+        }
+    }
+
     buildTypes {
         release {
-            // R8 is required so the ProGuard keep rules in proguard-rules.pro
-            // protect the WorkManager/Room classes that Google Mobile Ads
-            // initializes at startup.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
