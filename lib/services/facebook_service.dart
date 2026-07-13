@@ -82,12 +82,12 @@ class FacebookService extends ChangeNotifier {
   Future<bool> login() async {
     try {
       final result = await FacebookAuth.instance.login(
-        permissions: ['public_profile', 'email', 'user_friends'],
+        permissions: const ['public_profile', 'user_friends'],
       );
 
       if (result.status == LoginStatus.success) {
         final userData = await FacebookAuth.instance.getUserData(
-          fields: 'id,name,email',
+          fields: 'id,name',
         );
 
         final accessToken = result.accessToken?.tokenString;
@@ -95,7 +95,7 @@ class FacebookService extends ChangeNotifier {
         _user = FacebookUser(
           id: userData['id'] as String,
           name: userData['name'] as String,
-          email: userData['email'] as String?,
+          email: null,
           accessToken: accessToken,
         );
 
