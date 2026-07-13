@@ -4,6 +4,7 @@ import 'package:neon_flap_2100/core/di/service_locator.dart';
 import 'package:neon_flap_2100/core/theme/app_theme.dart';
 import 'package:neon_flap_2100/models/difficulty_config.dart';
 import 'package:neon_flap_2100/services/leaderboard_service.dart';
+import 'package:neon_flap_2100/services/facebook_service.dart';
 import 'package:neon_flap_2100/store/characters_data.dart';
 import 'package:neon_flap_2100/widgets/neon_button.dart';
 
@@ -33,7 +34,7 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       backgroundColor: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 520),
+        constraints: const BoxConstraints(maxWidth: 520),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
@@ -65,7 +66,9 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            Flexible(
+            SizedBox(
+              width: double.infinity,
+              height: 360,
               child: entries.isEmpty
                   ? Column(
                       children: const [
@@ -105,18 +108,86 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
                     ),
             ),
             const SizedBox(height: 12),
-            NeonButton(
-              label: 'RESET',
-              color: NeonPalette.red,
-              onPressed: () async {
-                await leaderboard.reset();
-                if (mounted) setState(() {});
-              },
+            Row(
+              children: [
+                Expanded(
+                  child: NeonButton(
+                    label: 'SHARE ON FACEBOOK',
+                    color: const Color(0xFF1877F2),
+                    onPressed: () => _shareBestScore(context),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: NeonButton(
+                    label: 'RESET',
+                    color: NeonPalette.red,
+                    onPressed: () async {
+                      await leaderboard.reset();
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+  Future<void> _shareBestScore(BuildContext context) async {
+    final leaderboard = sl<LeaderboardService>();
+    final entries = leaderboard.entries;
+    if (entries.isEmpty) return;
+
+    final best = entries.first;
+    final diffLabel = best.difficulty == DifficultyMode.easy
+        ? 'EASY'
+        : best.difficulty == DifficultyMode.normal
+            ? 'NORMAL'
+            : 'HARD';
+
+    final facebook = sl<FacebookService>();
+    if (!facebook.isLoggedIn) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: NeonPalette.backgroundDark,
+          title: const Text('LOGIN REQUIRED', style: NeonTextStyle.heading),
+          content: const Text('Please login with Facebook to share your score.',
+              style: NeonTextStyle.body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK', style: NeonTextStyle.label),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    await facebook.postScoreToFacebook(best.score, diffLabel);
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: NeonPalette.backgroundDark,
+          title: const Text('SHARED', style: NeonTextStyle.heading),
+          content: Text(
+            'Your best score of ${best.score} has been shared on Facebook.',
+            style: NeonTextStyle.body,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK', style: NeonTextStyle.label),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }
 
