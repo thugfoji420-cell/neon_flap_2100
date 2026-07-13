@@ -64,56 +64,71 @@ class _FacebookLoginDialogState extends State<_FacebookLoginDialog> {
               if (_message != null)
                 Text(_message!, style: NeonTextStyle.label),
               const SizedBox(height: 12),
-              NeonButton(
-                label: 'SYNC DATA',
-                color: NeonPalette.green,
-                enabled: !_loading,
-                onPressed: () => _syncData(context, facebook),
+              SizedBox(
+                width: double.infinity,
+                child: NeonButton(
+                  label: 'SYNC DATA',
+                  color: NeonPalette.green,
+                  enabled: !_loading,
+                  onPressed: () => _syncData(context, facebook),
+                ),
               ),
               const SizedBox(height: 12),
-              NeonButton(
-                label: 'FRIENDS LEADERBOARD',
-                color: NeonPalette.magenta,
-                enabled: !_loading,
-                onPressed: () => _showFriendsLeaderboard(context, facebook),
+              SizedBox(
+                width: double.infinity,
+                child: NeonButton(
+                  label: 'FRIENDS LEADERBOARD',
+                  color: NeonPalette.magenta,
+                  enabled: !_loading,
+                  onPressed: () => _showFriendsLeaderboard(context, facebook),
+                ),
               ),
               const SizedBox(height: 12),
-              NeonButton(
-                label: 'LOGOUT',
-                color: NeonPalette.red,
-                enabled: !_loading,
-                onPressed: () async {
-                  setState(() => _loading = true);
-                  await facebook.logout();
-                  if (mounted) {
-                    setState(() {
-                      _loading = false;
-                      _message = null;
-                    });
-                  }
-                },
+              SizedBox(
+                width: double.infinity,
+                child: NeonButton(
+                  label: 'LOGOUT',
+                  color: NeonPalette.red,
+                  enabled: !_loading,
+                  onPressed: () async {
+                    setState(() => _loading = true);
+                    await facebook.logout();
+                    if (mounted) {
+                      setState(() {
+                        _loading = false;
+                        _message = null;
+                      });
+                    }
+                  },
+                ),
               ),
-            ] else ...[
-              const Text(
-                'Connect with Facebook to save your progress and compete with friends.',
-                style: NeonTextStyle.body,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 18),
-              NeonButton(
-                label: 'CONTINUE WITH FACEBOOK',
-                color: const Color(0xFF1877F2),
-                enabled: !_loading,
-                onPressed: () => _login(context, facebook),
-              ),
-            ],
+             ] else ...[
+               const Text(
+                 'Connect with Facebook to save your progress and compete with friends.',
+                 style: NeonTextStyle.body,
+                 textAlign: TextAlign.center,
+               ),
+               const SizedBox(height: 18),
+               SizedBox(
+                 width: double.infinity,
+                 child: NeonButton(
+                   label: 'LOGIN WITH FACEBOOK',
+                   color: const Color(0xFF1877F2),
+                   enabled: !_loading,
+                   onPressed: () => _login(context, facebook),
+                 ),
+               ),
+             ],
             const SizedBox(height: 12),
-            NeonButton(
-              label: 'CLOSE',
-              color: NeonPalette.red,
-              fontSize: 14,
-              height: 40,
-              onPressed: () => Navigator.pop(context),
+            SizedBox(
+              width: double.infinity,
+              child: NeonButton(
+                label: 'CLOSE',
+                color: NeonPalette.red,
+                fontSize: 14,
+                height: 40,
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
           ],
         ),
