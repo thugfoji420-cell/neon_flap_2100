@@ -20,7 +20,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["applicationName"] = "com.neonflap.game.NeonFlapApplication"
     }
 
     buildTypes {
