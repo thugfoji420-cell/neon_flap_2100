@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:neon_flap_2100/core/di/service_locator.dart';
 import 'package:neon_flap_2100/core/theme/app_theme.dart';
@@ -40,6 +41,29 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       context,
       GameScreen(mode: mode),
     );
+  }
+
+  Future<void> _exit() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: NeonPalette.backgroundDark,
+        title: const Text('Exit Game?', style: NeonTextStyle.heading),
+        content: const Text('Close Neon Flap 2100?',
+            style: NeonTextStyle.body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('CANCEL', style: NeonTextStyle.label),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('EXIT', style: NeonTextStyle.label),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) SystemNavigator.pop();
   }
 
   @override
@@ -136,6 +160,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      NeonButton(
+                        label: 'EXIT',
+                        color: NeonPalette.red,
+                        fontSize: 15,
+                        onPressed: _exit,
                       ),
                     ],
                   ),
