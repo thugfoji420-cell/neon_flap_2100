@@ -8,7 +8,6 @@ import 'package:neon_flap_2100/core/theme/app_theme.dart';
 import 'package:neon_flap_2100/game/game_controller.dart';
 import 'package:neon_flap_2100/game/neon_flap_game.dart';
 import 'package:neon_flap_2100/models/difficulty_config.dart';
-import 'package:neon_flap_2100/routing/route_transitions.dart';
 import 'package:neon_flap_2100/screens/reward_screen.dart';
 import 'package:neon_flap_2100/services/ad_service.dart';
 import 'package:neon_flap_2100/services/audio_service.dart';
@@ -87,16 +86,14 @@ class _GameScreenState extends State<GameScreen> {
     final best = sl<CoinService>().bestScore;
     sl<LeaderboardService>().submit(score, widget.mode, sl<OwnedCharactersService>().selectedId);
     if (!mounted) return;
-    await pushWithFade(
-      context,
-      RewardScreen(
-        earnedCoins: earned,
-        score: score,
-        best: best,
-        mode: widget.mode,
-        characterId: sl<OwnedCharactersService>().selectedId,
-        totalFlaps: _controller.totalFlaps,
-      ),
+    await showRewardDialog(
+      context: context,
+      earnedCoins: earned,
+      score: score,
+      best: best,
+      mode: widget.mode,
+      characterId: sl<OwnedCharactersService>().selectedId,
+      totalFlaps: _controller.totalFlaps,
     );
     // Banner only lives during gameplay.
     sl<AdService>().disposeBanner();

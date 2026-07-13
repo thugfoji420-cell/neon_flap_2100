@@ -14,11 +14,33 @@ import 'package:neon_flap_2100/services/audio_service.dart';
 import 'package:neon_flap_2100/services/coin_service.dart';
 import 'package:neon_flap_2100/widgets/neon_button.dart';
 
-/// Reward screen shown on death. Offers rewarded-ad multipliers (2x / 5x) or
-/// a skip. Coins are only credited after [onUserEarnedReward] fires.
-class RewardScreen extends StatefulWidget {
-  const RewardScreen({
-    super.key,
+Future<void> showRewardDialog({
+  required BuildContext context,
+  required int earnedCoins,
+  required int score,
+  required int best,
+  required DifficultyMode mode,
+  required String characterId,
+  required int totalFlaps,
+}) {
+  return showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) {
+      return _RewardDialog(
+        earnedCoins: earnedCoins,
+        score: score,
+        best: best,
+        mode: mode,
+        characterId: characterId,
+        totalFlaps: totalFlaps,
+      );
+    },
+  );
+}
+
+class _RewardDialog extends StatefulWidget {
+  const _RewardDialog({
     required this.earnedCoins,
     required this.score,
     required this.best,
@@ -35,10 +57,10 @@ class RewardScreen extends StatefulWidget {
   final int totalFlaps;
 
   @override
-  State<RewardScreen> createState() => _RewardScreenState();
+  State<_RewardDialog> createState() => _RewardDialogState();
 }
 
-class _RewardScreenState extends State<RewardScreen> {
+class _RewardDialogState extends State<_RewardDialog> {
   bool _processing = false;
   int _adsWatched = 0;
   bool _credited = false;
@@ -60,7 +82,8 @@ class _RewardScreenState extends State<RewardScreen> {
     final gained = (widget.earnedCoins * multiplier).round();
     await sl<CoinService>().addCoins(gained);
     if (multiplier > 1) sl<AudioService>().playSfx(Sfx.rewardReceived);
-    await pushWithFade(
+    if (!mounted) return;
+    await replaceWithFade(
       context,
       GameOverScreen(
         result: RunResult(
@@ -100,6 +123,93 @@ class _RewardScreenState extends State<RewardScreen> {
   @override
   Widget build(BuildContext context) {
     final earned = widget.earnedCoins;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: NeonPalette.backgroundDark,
+          border: Border.all(color: NeonPalette.cyan.withOpacity(0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: NeonPalette.cyan.withOpacity(0.25),
+              blurRadius: 28,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('GAME OVER', style: NeonTextStyle.title),
+            const SizedBox(height: 18),
+            Text('YOU EARNED', style: NeonTextStyle.label),
+            const SizedBox(height: 6),
+            Text('$earned', style: NeonTextStyle.title.copyWith(
+              color: NeonPalette.yellow,
+              fontSize: 56,
+            )),
+            Text('COINS', style: NeonTextStyle.label),
+            const SizedBox(height: 28),
+            const Text('CHOOSE REWARD', style: NeonTextStyle.heading),
+            const SizedBox(height: 16),
+            NeonButton(
+              label: 'WATCH 1 AD  ·  2x COINS',
+              color: NeonPalette.green,
+              enabled: !_processing,
+              onPressed: _watchOne,
+            ),
+            const SizedBox(height: 12),
+            NeonButton(
+              label: _processing && _adsWatched > 0
+                  ? 'WATCH 3 ADS  ·  ${_adsWatched}/3'
+                  : 'WATCH 3 ADS  ·  5x COINS',
+              color: NeonPalette.cyan,
+              enabled: !_processing,
+              onPressed: _watchThree,
+            ),
+            const SizedBox(height: 12),
+            NeonButton(
+              label: 'CLOSE  ·  KEEP $earned',
+              color: NeonPalette.red,
+              enabled: !_processing,
+              onPressed: () => _finish(1),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Skip = no bonus. Rewards only after the ad is earned.',
+              style: NeonTextStyle.body,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class RewardScreen extends StatelessWidget {
+  const RewardScreen({
+    super.key,
+    required this.earnedCoins,
+    required this.score,
+    required this.best,
+    required this.mode,
+    required this.characterId,
+    required this.totalFlaps,
+  });
+
+  final int earnedCoins;
+  final int score;
+  final int best;
+  final DifficultyMode mode;
+  final String characterId;
+  final int totalFlaps;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: NeonPalette.backgroundDeep,
       body: Container(
@@ -113,54 +223,14 @@ class _RewardScreenState extends State<RewardScreen> {
             ],
           ),
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('GAME OVER', style: NeonTextStyle.title),
-                const SizedBox(height: 18),
-                Text('YOU EARNED', style: NeonTextStyle.label),
-                const SizedBox(height: 6),
-                Text('$earned', style: NeonTextStyle.title.copyWith(
-                  color: NeonPalette.yellow,
-                  fontSize: 56,
-                )),
-                 Text('COINS', style: NeonTextStyle.label),
-                 const SizedBox(height: 28),
-                 const Text('CHOOSE REWARD', style: NeonTextStyle.heading),
-                 const SizedBox(height: 16),
-                NeonButton(
-                  label: 'WATCH 1 AD  ·  2x COINS',
-                  color: NeonPalette.green,
-                  enabled: !_processing,
-                  onPressed: _watchOne,
-                ),
-                const SizedBox(height: 12),
-                NeonButton(
-                  label: _processing && _adsWatched > 0
-                      ? 'WATCH 3 ADS  ·  ${_adsWatched}/3'
-                      : 'WATCH 3 ADS  ·  5x COINS',
-                  color: NeonPalette.cyan,
-                  enabled: !_processing,
-                  onPressed: _watchThree,
-                ),
-                 const SizedBox(height: 12),
-                 NeonButton(
-                   label: 'CLOSE  ·  KEEP ${earned}',
-                   color: NeonPalette.red,
-                   enabled: !_processing,
-                   onPressed: () => _finish(1),
-                 ),
-                 const SizedBox(height: 12),
-                 const Text(
-                   'Skip = no bonus. Rewards only after the ad is earned.',
-                   style: NeonTextStyle.body,
-                   textAlign: TextAlign.center,
-                 ),
-              ],
-            ),
+        child: Center(
+          child: _RewardDialog(
+            earnedCoins: earnedCoins,
+            score: score,
+            best: best,
+            mode: mode,
+            characterId: characterId,
+            totalFlaps: totalFlaps,
           ),
         ),
       ),
