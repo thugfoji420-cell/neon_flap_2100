@@ -50,6 +50,7 @@ class _GameScreenState extends State<GameScreen> {
     sl<AudioService>().stopMusic();
     sl<AudioService>().playMusic(MusicTrack.game);
     sl<AdService>().loadBanner();
+    sl<AdService>().loadInterstitialAd();
     _startCountdown();
   }
 

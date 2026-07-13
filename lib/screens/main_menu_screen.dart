@@ -9,6 +9,7 @@ import 'package:neon_flap_2100/screens/game_screen.dart';
 import 'package:neon_flap_2100/services/audio_service.dart';
 import 'package:neon_flap_2100/services/coin_service.dart';
 import 'package:neon_flap_2100/services/owned_characters_service.dart';
+import 'package:neon_flap_2100/services/ad_service.dart';
 import 'package:neon_flap_2100/settings/settings_screen.dart';
 import 'package:neon_flap_2100/store/character_store_screen.dart';
 import 'package:neon_flap_2100/store/coin_shop_screen.dart';
@@ -30,6 +31,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   void initState() {
     super.initState();
     sl<AudioService>().playMusic(MusicTrack.menu);
+    sl<AdService>().loadInterstitialAd();
   }
 
   Future<void> _play() async {

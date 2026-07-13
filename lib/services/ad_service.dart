@@ -90,6 +90,7 @@ class AdService extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   void _loadInterstitialAd() {
+    if (_interstitialAd != null) return;
     InterstitialAd.load(
       adUnitId: AppConstants.interstitialAdUnitId,
       request: const AdRequest(),
@@ -99,6 +100,8 @@ class AdService extends ChangeNotifier {
       ),
     );
   }
+
+  void loadInterstitialAd() => _loadInterstitialAd();
 
   /// Shows an interstitial ad if available and not shown recently.
   /// Returns true if an ad was shown, false otherwise.
