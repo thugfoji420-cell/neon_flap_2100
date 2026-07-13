@@ -33,7 +33,7 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       backgroundColor: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 520),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
@@ -65,47 +65,45 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            if (entries.isEmpty)
-              Column(
-                children: const [
-                  Text('NO RUNS YET', style: NeonTextStyle.label),
-                  SizedBox(height: 8),
-                  Text(
-                    'Play a game to see your scores here.',
-                    style: NeonTextStyle.body,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: entries.asMap().entries.map((e) {
-                      final index = e.key;
-                      final entry = e.value;
-                      final medal = index == 0
-                          ? '🥇'
-                          : index == 1
-                              ? '🥈'
-                              : index == 2
-                                  ? '🥉'
-                                  : '#${index + 1}';
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _LeaderboardTile(
-                          rank: medal,
-                          score: entry.score,
-                          difficulty: entry.difficulty,
-                          characterId: entry.characterId,
-                          date: entry.date,
+            Flexible(
+              child: entries.isEmpty
+                  ? Column(
+                      children: const [
+                        Text('NO RUNS YET', style: NeonTextStyle.label),
+                        SizedBox(height: 8),
+                        Text(
+                          'Play a game to see your scores here.',
+                          style: NeonTextStyle.body,
+                          textAlign: TextAlign.center,
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
+                      ],
+                    )
+                  : SingleChildScrollView(
+                      child: Column(
+                        children: entries.asMap().entries.map((e) {
+                          final index = e.key;
+                          final entry = e.value;
+                          final medal = index == 0
+                              ? '🥇'
+                              : index == 1
+                                  ? '🥈'
+                                  : index == 2
+                                      ? '🥉'
+                                      : '#${index + 1}';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _LeaderboardTile(
+                              rank: medal,
+                              score: entry.score,
+                              difficulty: entry.difficulty,
+                              characterId: entry.characterId,
+                              date: entry.date,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+            ),
             const SizedBox(height: 12),
             NeonButton(
               label: 'RESET',

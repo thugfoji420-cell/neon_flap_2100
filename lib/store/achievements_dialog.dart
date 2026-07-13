@@ -27,7 +27,7 @@ class _AchievementsDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       backgroundColor: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 520),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
@@ -69,8 +69,7 @@ class _AchievementsDialog extends StatelessWidget {
               style: NeonTextStyle.label.copyWith(color: NeonPalette.cyan),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
+            Flexible(
               child: SingleChildScrollView(
                 child: Column(
                   children: AchievementDefinition.all.map((def) {
