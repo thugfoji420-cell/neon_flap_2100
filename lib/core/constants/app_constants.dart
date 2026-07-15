@@ -26,9 +26,9 @@ class AppConstants {
 
   /// Base URL used for the privacy / terms documents required by the stores.
   static const String privacyPolicyUrl =
-      'https://example.com/neon-flap-2100/privacy';
+      'https://thugfoji420-cell.github.io/floppy-bird/';
   static const String termsOfServiceUrl =
-      'https://example.com/neon-flap-2100/terms';
+      'https://thugfoji420-cell.github.io/floppy-bird/terms';
 }
 
 /// Keys used for persistent local storage (SharedPreferences).
