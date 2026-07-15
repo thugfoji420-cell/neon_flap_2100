@@ -94,15 +94,20 @@ class SettingsScreen extends StatelessWidget {
                       onTap: () => _openUrl(AppConstants.privacyPolicyUrl),
                     ),
                     const SizedBox(height: 12),
-                    _LinkRow(
-                      label: 'TERMS OF SERVICE',
-                      onTap: () => _openUrl(AppConstants.termsOfServiceUrl),
-                    ),
-                    const SizedBox(height: 12),
-                    _LinkRow(
-                      label: 'CREDITS',
-                      onTap: () => pushWithFade(context, const CreditsScreen()),
-                    ),
+                     _LinkRow(
+                       label: 'TERMS OF SERVICE',
+                       onTap: () => _openUrl(AppConstants.termsOfServiceUrl),
+                     ),
+                     const SizedBox(height: 12),
+                     _LinkRow(
+                       label: 'DATA DELETION INSTRUCTIONS',
+                       onTap: () => _openUrl(AppConstants.dataDeletionUrl),
+                     ),
+                     const SizedBox(height: 12),
+                     _LinkRow(
+                       label: 'CREDITS',
+                       onTap: () => pushWithFade(context, const CreditsScreen()),
+                     ),
                     const SizedBox(height: 12),
                     _LinkRow(
                       label: 'RESET PROGRESS',

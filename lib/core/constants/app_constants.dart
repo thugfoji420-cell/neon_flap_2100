@@ -26,9 +26,11 @@ class AppConstants {
 
   /// Base URL used for the privacy / terms documents required by the stores.
   static const String privacyPolicyUrl =
-      'https://thugfoji420-cell.github.io/floppy-bird/';
+      'https://thugfoji420-cell.github.io/neon_flap_2100/';
   static const String termsOfServiceUrl =
-      'https://thugfoji420-cell.github.io/floppy-bird/terms';
+      'https://thugfoji420-cell.github.io/neon_flap_2100/terms';
+  static const String dataDeletionUrl =
+      'https://thugfoji420-cell.github.io/neon_flap_2100/data-deletion.html';
 }
 
 /// Keys used for persistent local storage (SharedPreferences).
