@@ -145,8 +145,14 @@ class FirebaseService extends ChangeNotifier {
     final cloudCoins = (profile['coins'] as num?)?.toInt() ?? 0;
     final cloudHigh = (profile['highScore'] as num?)?.toInt() ?? 0;
 
-    final mergedCoins = cloudCoins > localCoins ? cloudCoins : localCoins;
-    final mergedHigh = cloudHigh > localHighScore ? cloudHigh : localHighScore;
+    // For an existing profile, always use the cloud value as authoritative.
+    // localCoins / localHighScore come from SharedPreferences which is
+    // device-wide — when switching accounts the old user's cached values
+    // must NOT leak into the new user's balance.
+    final mergedCoins =
+        _player.profileExisted ? cloudCoins : (cloudCoins > localCoins ? cloudCoins : localCoins);
+    final mergedHigh =
+        _player.profileExisted ? cloudHigh : (cloudHigh > localHighScore ? cloudHigh : localHighScore);
 
     // Ensure the cloud reflects the merged (best) values.
     if (mergedCoins != cloudCoins) await _player.syncCoins(mergedCoins);
@@ -265,11 +271,25 @@ class FirebaseService extends ChangeNotifier {
     if (user == null) return 'No user is currently signed in.';
 
     final uid = user.uid;
-    final usernameLower = playerNameLower;
-
     if (kDebugMode) debugPrint('Starting account deletion for uid=$uid');
 
-    // Step 1: Delete all Firestore documents owned by the player.
+    final deleteError = await _deleteCloudData(uid);
+    if (deleteError != null) return deleteError;
+
+    final usernameError = await _deleteUsernameIndex();
+    if (usernameError != null) return usernameError;
+
+    final authError = await _deleteAuthUser(user, uid);
+    if (authError != null) return authError;
+
+    await _clearLocalSession();
+    _resetAfterDeletion(uid);
+
+    return null;
+  }
+
+  /// Deletes all Firestore documents owned by the player.
+  Future<String?> _deleteCloudData(String uid) async {
     final deleteFutures = <Future>[
       _refs.player(uid).delete(),
       _refs.cloudSave.doc(uid).delete(),
@@ -289,49 +309,64 @@ class FirebaseService extends ChangeNotifier {
       if (kDebugMode) debugPrint('Failed to delete some Firestore documents: $e');
       return 'Failed to delete cloud data: $e';
     }
+    return null;
+  }
 
-    // Step 2: Delete the username reservation index.
-    if (usernameLower != null && usernameLower.isNotEmpty) {
-      try {
-        await _refs.usernames.doc(usernameLower).delete();
-        if (kDebugMode) debugPrint('Deleted username index: $usernameLower');
-      } catch (e) {
-        if (kDebugMode) debugPrint('Failed to delete username index: $e');
-        return 'Failed to release username: $e';
-      }
+  /// Deletes the username reservation index document.
+  Future<String?> _deleteUsernameIndex() async {
+    final usernameLower = playerNameLower;
+    if (usernameLower == null || usernameLower.isEmpty) return null;
+
+    try {
+      await _refs.usernames.doc(usernameLower).delete();
+      if (kDebugMode) debugPrint('Deleted username index: $usernameLower');
+    } catch (e) {
+      if (kDebugMode) debugPrint('Failed to delete username index: $e');
+      return 'Failed to release username: $e';
     }
+    return null;
+  }
 
-    // Step 3: Delete the Firebase Authentication user.
+  /// Deletes the Firebase Auth user, handling re-authentication if required.
+  Future<String?> _deleteAuthUser(User user, String uid) async {
     try {
       await user.delete();
       if (kDebugMode) debugPrint('Deleted Firebase Auth user: $uid');
+      return null;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'requires-recent-login') {
-        if (kDebugMode) debugPrint('Re-authentication required for account deletion');
-        final reauthUser = await _auth.reauthenticateWithGoogle();
-        if (reauthUser == null) {
-          return 'Re-authentication was cancelled. Account deletion cannot continue.';
-        }
-        try {
-          await _auth.currentUser?.delete();
-          if (kDebugMode) debugPrint('Deleted Firebase Auth user after re-auth: $uid');
-        } on FirebaseAuthException catch (e2) {
-          if (kDebugMode) debugPrint('Failed to delete account after re-auth: ${e2.code} ${e2.message}');
-          return 'Failed to delete account after re-authentication: ${e2.message}';
-        } catch (e2) {
-          if (kDebugMode) debugPrint('Failed to delete account after re-auth: $e2');
-          return 'Failed to delete account after re-authentication: $e2';
-        }
-      } else {
+      if (e.code != 'requires-recent-login') {
         if (kDebugMode) debugPrint('Failed to delete account: ${e.code} ${e.message}');
         return 'Failed to delete account: ${e.message}';
       }
+      return _retryDeleteAfterReauth(uid);
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to delete account: $e');
       return 'Failed to delete account: $e';
     }
+  }
 
-    // Step 4: Sign out and clear local cached session data.
+  /// Re-authenticates with Google then retries user deletion.
+  Future<String?> _retryDeleteAfterReauth(String uid) async {
+    if (kDebugMode) debugPrint('Re-authentication required for account deletion');
+    final reauthUser = await _auth.reauthenticateWithGoogle();
+    if (reauthUser == null) {
+      return 'Re-authentication was cancelled. Account deletion cannot continue.';
+    }
+    try {
+      await _auth.currentUser?.delete();
+      if (kDebugMode) debugPrint('Deleted Firebase Auth user after re-auth: $uid');
+      return null;
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) debugPrint('Failed to delete account after re-auth: ${e.code} ${e.message}');
+      return 'Failed to delete account after re-authentication: ${e.message}';
+    } catch (e) {
+      if (kDebugMode) debugPrint('Failed to delete account after re-auth: $e');
+      return 'Failed to delete account after re-authentication: $e';
+    }
+  }
+
+  /// Signs out and clears all local session data.
+  Future<void> _clearLocalSession() async {
     await _auth.signOut(clearLocalSession: () async {
       final storage = sl<StorageService>();
       await storage.remove('player_name_prompt_completed');
@@ -348,14 +383,14 @@ class FirebaseService extends ChangeNotifier {
       await storage.remove(StorageKeys.lastInterstitialGame);
       if (kDebugMode) debugPrint('Cleared local session data');
     });
+  }
 
-    // Step 5: Reset in-memory state so the app behaves like a fresh install.
+  /// Resets in-memory state so the app behaves like a fresh install.
+  void _resetAfterDeletion(String uid) {
     _player.reset();
     _initializing = false;
     notifyListeners();
     if (kDebugMode) debugPrint('Account deletion complete for uid=$uid');
-
-    return null;
   }
 
   /// Notifies listeners that player state has changed (e.g. after a username

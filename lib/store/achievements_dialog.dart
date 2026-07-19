@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'dart:math';
-
 import 'package:neon_flap1_game/core/di/service_locator.dart';
 import 'package:neon_flap1_game/core/theme/app_theme.dart';
 import 'package:neon_flap1_game/services/achievement_service.dart';
@@ -61,9 +59,12 @@ class _AchievementsDialog extends StatelessWidget {
                   .copyWith(color: Theme.of(context).colorScheme.primary),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: min(360, MediaQuery.of(context).size.height * 0.55),
+            // ConstrainedBox avoids Expanded which can trigger multi-pass
+            // layout in Dialog overlays (causing child.hasSize assertions).
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.55,
+              ),
               child: SingleChildScrollView(
                 child: Column(
                   children: AchievementDefinition.all.map((def) {

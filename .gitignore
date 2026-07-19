@@ -60,3 +60,7 @@ buildlog.txt
 deps.txt
 verbose.txt
 .firebase/
+
+# Tool-specific metadata (do not commit)
+.commandcode/
+.kilo/

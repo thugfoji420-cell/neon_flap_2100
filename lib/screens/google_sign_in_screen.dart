@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
@@ -157,6 +158,13 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 24),
+                NeonButton(
+                  label: 'EXIT GAME',
+                  color: NeonPalette.red,
+                  fontSize: 16,
+                  onPressed: () => SystemNavigator.pop(),
+                ),
               ],
             ),
           ),

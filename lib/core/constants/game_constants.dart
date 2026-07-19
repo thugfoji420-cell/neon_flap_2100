@@ -40,7 +40,7 @@ class GameConstants {
   static const int maxObjectPool = 24;
 
   /// Camera viewfinder zoom. Values below 1 zoom the camera OUT, increasing the
-  /// visible world area so the player can see roughly three upcoming pipe sets
+  /// visible world area so the player can see roughly two upcoming pipe gaps
   /// without changing physics, speed, player size or spawn timing.
-  static const double viewZoom = 0.62;
+  static const double viewZoom = 0.55;
 }

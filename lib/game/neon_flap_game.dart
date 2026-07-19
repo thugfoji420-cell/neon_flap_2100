@@ -62,7 +62,9 @@ class NeonFlapGame extends FlameGame {
     // changes the view/layout; physics, speeds and spawn timing are untouched.
     camera.viewfinder.zoom = GameConstants.viewZoom;
 
-    playerX = size.x * 0.28;
+    // Position the player at ~22% from the left edge so ~78% of the visible
+    // world is ahead, clearly showing approximately two upcoming pipe gaps.
+    playerX = size.x * 0.22;
     groundHeight = max(30, size.y * 0.06);
 
     // The camera is zoomed out (see above), so the visible world is larger than
@@ -160,15 +162,15 @@ class NeonFlapGame extends FlameGame {
 
   void _updatePipes(double dt) {
     _activePipeCount = 0;
-    for (final p in _pipePool) {
-      if (!p.active) continue;
+    for (final pipe in _pipePool) {
+      if (!pipe.active) continue;
       _activePipeCount++;
-      p.update(dt);
-      if (!p.passed && p.rightEdge < playerX) {
-        p.passed = true;
+      pipe.update(dt);
+      if (!pipe.passed && pipe.rightEdge < playerX) {
+        pipe.passed = true;
         controller.addScore();
       }
-      if (p.position.x + GameConstants.pipeWidth < -20) p.recycle();
+      if (pipe.position.x + GameConstants.pipeWidth < -20) pipe.recycle();
     }
   }
 
@@ -203,8 +205,8 @@ class NeonFlapGame extends FlameGame {
   // ---------------------------------------------------------------------------
 
   PipePair? _acquirePipe() {
-    for (final p in _pipePool) {
-      if (!p.active) return p;
+    for (final pipe in _pipePool) {
+      if (!pipe.active) return pipe;
     }
     return null;
   }
@@ -229,9 +231,9 @@ class NeonFlapGame extends FlameGame {
     // full pool — only check active pipes for the rightmost position.
     if (_activePipeCount >= GameConstants.maxPipePool) return;
     var rightmost = -double.infinity;
-    for (final p in _pipePool) {
-      if (!p.active) continue;
-      if (p.position.x > rightmost) rightmost = p.position.x;
+    for (final pipe in _pipePool) {
+      if (!pipe.active) continue;
+      if (pipe.position.x > rightmost) rightmost = pipe.position.x;
     }
     if (rightmost > size.x - GameConstants.pipeSpacing) return;
 
@@ -242,7 +244,9 @@ class NeonFlapGame extends FlameGame {
     final maxY = worldHeight - groundHeight - gap / 2 - margin;
     final centerY = minY + _rnd.nextDouble() * (maxY - minY);
     final score = controller.score;
-    final bottomOffset = _pipeZigZag ? 55.0 : 0.0;
+    // Alternating diagonal zig-zag: bottom pipe shifts ±45px so each pair
+    // creates a visible left/right offset pattern.
+    final bottomOffset = _pipeZigZag ? -45.0 : 45.0;
     _pipeZigZag = !_pipeZigZag;
 
     final pipe = _acquirePipe();
@@ -328,9 +332,9 @@ class NeonFlapGame extends FlameGame {
       return;
     }
 
-    for (final p in _pipePool) {
-      if (!p.active) continue;
-      if (_hit(p.topRect, pc, pr) || _hit(p.bottomRect, pc, pr)) {
+    for (final pipe in _pipePool) {
+      if (!pipe.active) continue;
+      if (_hit(pipe.topRect, pc, pr) || _hit(pipe.bottomRect, pc, pr)) {
         _die();
         return;
       }
@@ -396,7 +400,7 @@ class NeonFlapGame extends FlameGame {
     // Rebuild the decor so it always covers the full visible world width.
     _rebuildWorldDecor(size / GameConstants.viewZoom);
     // Keep player horizontally anchored on resize.
-    if (playerX > 0) playerX = size.x * 0.28;
+    if (playerX > 0) playerX = size.x * 0.22;
   }
 
   /// (Re)creates the background and ground at [viewSize] so they always span

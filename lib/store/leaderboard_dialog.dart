@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'dart:math';
-
 import 'package:neon_flap1_game/core/di/service_locator.dart';
 import 'package:neon_flap1_game/core/theme/app_theme.dart';
 import 'package:neon_flap1_game/firebase/firebase_service.dart';
@@ -106,9 +104,12 @@ class _CloudLeaderboardDialogState extends State<_CloudLeaderboardDialog>
               ],
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: min(360, MediaQuery.of(context).size.height * 0.55),
+            // ConstrainedBox avoids Expanded which can trigger multi-pass
+            // layout in Dialog overlays (causing child.hasSize assertions).
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.55,
+              ),
               child: _loading
                   ? const Center(
                       child: CircularProgressIndicator(),

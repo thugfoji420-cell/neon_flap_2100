@@ -30,23 +30,25 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("../neon_flap_release.jks")
-            // No fallback — the build FAILS if these are not set. This forces
-            // the release engineer to configure them explicitly and prevents
-            // the old default "android123" from being used accidentally.
+            // Lazy evaluation: getOrNull() returns null when the env var /
+            // system property is absent so the config block never throws at
+            // configuration time (which would also break debug builds).
             storePassword = providers.systemProperty("NEON_FLAP_STORE_PASSWORD")
                 .orElse(providers.environmentVariable("NEON_FLAP_STORE_PASSWORD"))
-                .get()
+                .getOrNull()
             keyAlias = providers.systemProperty("NEON_FLAP_KEY_ALIAS")
                 .orElse(providers.environmentVariable("NEON_FLAP_KEY_ALIAS"))
-                .orElse("neon_flap_release")
-                .get()
+                .getOrElse("neon_flap_release")
             keyPassword = providers.systemProperty("NEON_FLAP_KEY_PASSWORD")
                 .orElse(providers.environmentVariable("NEON_FLAP_KEY_PASSWORD"))
-                .get()
+                .getOrNull()
         }
     }
 
     buildTypes {
+        debug {
+            // Default debug signing (no keystore required).
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

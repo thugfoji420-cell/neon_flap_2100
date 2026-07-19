@@ -85,18 +85,18 @@ class _RewardDialogState extends State<_RewardDialog> {
       final sessionKey = _sessionKey ?? 'default';
       final rewardKey = '$sessionKey-$multiplier';
       if (!sl<AdService>().wasRewarded(rewardKey)) {
-        final synced = await sl<AdService>().grantReward(
+        // Credit the coins FIRST so they survive a Firestore failure.
+        await sl<CoinService>().addCoins(bonus);
+        sl<AudioService>().playSfx(Sfx.rewardReceived);
+        await sl<AdService>().markRewarded(rewardKey);
+        // Best-effort Firestore audit — failure must not block the reward.
+        await sl<AdService>().grantReward(
           coinAmount: bonus,
           rewardType: multiplier == 2 ? 'rewarded_2x' : 'rewarded_5x',
           adUnitId: multiplier == 2
               ? AdConstants.productionRewarded2x
               : AdConstants.productionRewarded5x,
         );
-        if (synced) {
-          await sl<AdService>().markRewarded(rewardKey);
-          await sl<CoinService>().addCoins(bonus);
-          sl<AudioService>().playSfx(Sfx.rewardReceived);
-        }
       }
     }
 

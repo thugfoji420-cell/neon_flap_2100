@@ -39,10 +39,7 @@ class AdService extends ChangeNotifier {
     await MobileAds.instance.initialize();
     await MobileAds.instance.updateRequestConfiguration(
       RequestConfiguration(
-        testDeviceIds: <String>[
-          'EMULATOR',
-          '2AA02B5D374E70B1F1EDD9B4489D84B8',
-        ],
+        testDeviceIds: AdConstants.testDeviceIds,
       ),
     );
 

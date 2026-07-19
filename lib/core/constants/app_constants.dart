@@ -24,12 +24,14 @@ class AppConstants {
       'ca-app-pub-4514520183755342/2631686702';
 
   /// Base URL used for the privacy / terms documents required by the stores.
-  static const String privacyPolicyUrl =
-      'https://thugfoji420-cell.github.io/floppy-bird/';
-  static const String termsOfServiceUrl =
-      'https://thugfoji420-cell.github.io/floppy-bird/terms';
-  static const String dataDeletionUrl =
-      'https://thugfoji420-cell.github.io/floppy-bird/data-deletion.html';
+  /// GitHub Pages serves from the docs/ folder with .nojekyll (no Jekyll).
+  /// Files are served with their actual extensions — each URL must match the
+  /// exact filename in the docs/ directory (case-sensitive).
+  static const String _baseDocs =
+      'https://thugfoji420-cell.github.io/neon_flap_2100';
+  static const String privacyPolicyUrl = '$_baseDocs/privacy-policy.html';
+  static const String termsOfServiceUrl = '$_baseDocs/terms-of-service.html';
+  static const String dataDeletionUrl = '$_baseDocs/data-deletion.html';
 }
 
 /// Keys used for persistent local storage (SharedPreferences).
@@ -51,4 +53,8 @@ class StorageKeys {
   static const String completedGames = 'nf_completed_games';
   static const String lastInterstitialGame = 'nf_last_interstitial_game';
   static const String themeMode = 'nf_theme_mode';
+  static const String dailyRewardLastClaim = 'nf_daily_reward_last_claim';
+  static const String dailyRewardClaimedDay = 'nf_daily_reward_claimed_day';
+  static const String dailyRewardClaimedStreak = 'nf_daily_reward_claimed_streak';
+  static const String dailyRewardPendingOffline = 'nf_daily_reward_pending_offline';
 }

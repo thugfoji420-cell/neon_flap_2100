@@ -1,17 +1,56 @@
-# neon_flap_2100
+# Neon Flap 2100
 
-A new Flutter project.
+A futuristic cyberpunk arcade flapper built with **Flutter** + **Flame** game engine.
 
-## Getting Started
+## Tech Stack
 
-This project is a starting point for a Flutter application.
+- Flutter + Flame Engine
+- Firebase Authentication (Google Sign-In)
+- Cloud Firestore
+- Google AdMob (banner, interstitial, rewarded, app open)
+- Google Play Billing (IAP coin packs)
+- Material 3
 
-A few resources to get you started if this is your first Flutter project:
+## Setup
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter pub get
+flutter build apk --debug
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## GitHub Pages Setup
+
+Legal documents (privacy policy, terms of service, data deletion) live in the `docs/` folder as markdown files with Jekyll front matter.
+
+### To enable:
+
+1. Go to repository **Settings → Pages**
+2. Under **Source**, select **Deploy from a branch**
+3. Set branch to `main` and folder to `/docs`
+4. Click **Save**
+
+GitHub Pages automatically runs Jekyll. With `permalink: pretty` configured in `docs/_config.yml`, each `.md` file renders as a clean path URL:
+
+| Document | URL Path |
+|---|---|
+| Home | `/neon_flap_2100/` |
+| Privacy Policy | `/neon_flap_2100/privacy-policy` |
+| Terms of Service | `/neon_flap_2100/terms-of-service` |
+| Data Deletion | `/neon_flap_2100/data-deletion` |
+
+No `.html` suffix needed — Jekyll generates clean directory-style URLs.
+
+## Running Tests
+
+```bash
+flutter analyze
+flutter test
+```
+
+## Code Quality
+
+- All rendering is procedural (Canvas) — no image sprites
+- Offline-first: SharedPreferences is authoritative, Firestore is best-effort
+- Object pooling for game components (pipes, coins, obstacles)
+- Service locator pattern via `get_it`

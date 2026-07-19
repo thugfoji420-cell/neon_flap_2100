@@ -66,7 +66,9 @@ class PlayerService {
         _profile = {
           'username': defaultName,
           'usernameLower': defaultName.toLowerCase(),
-          'coins': localCoins,
+          // New users start at 0 regardless of what's in local SharedPreferences
+          // (which may belong to a previously signed-in account on this device).
+          'coins': 0,
           'highScore': localHighScore,
           'bestDistance': 0,
           'level': 1,

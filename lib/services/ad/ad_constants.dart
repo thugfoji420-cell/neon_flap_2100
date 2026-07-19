@@ -31,6 +31,14 @@ class AdConstants {
   static const String testRewarded = 'ca-app-pub-3940256099942544/5224354917';
 
   // ---------------------------------------------------------------------------
+  // Test device IDs
+  // ---------------------------------------------------------------------------
+  static const String testDeviceEmulator = 'EMULATOR';
+  static const String testDeviceId = '2AA02B5D374E70B1F1EDD9B4489D84B8';
+
+  static List<String> get testDeviceIds => [testDeviceEmulator, testDeviceId];
+
+  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
   static String get appId =>

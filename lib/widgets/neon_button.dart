@@ -14,8 +14,8 @@ class NeonButton extends StatefulWidget {
     this.onPressed,
     this.color,
     this.width,
-    this.height = 56,
-    this.fontSize = 20,
+    this.height = 48,
+    this.fontSize = 16,
     this.enabled = true,
   });
 
@@ -100,8 +100,11 @@ class _NeonButtonState extends State<NeonButton>
           builder: (context, child) {
             final glow = active ? 14 + _pulse.value * 10 : 4.0;
             return Container(
-              width: widget.width,
-              height: widget.height,
+              constraints: BoxConstraints(
+                minHeight: widget.height,
+                minWidth: widget.width ?? double.infinity,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
