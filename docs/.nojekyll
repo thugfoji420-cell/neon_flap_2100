@@ -1,0 +1,2 @@
+# GitHub Pages with .nojekyll serves files as-is without Jekyll processing.
+# .md files are viewable in the repo UI; .html files are served by Pages.
