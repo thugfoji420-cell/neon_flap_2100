@@ -2,9 +2,9 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 
-import 'package:neon_flap_2100/core/constants/game_constants.dart';
-import 'package:neon_flap_2100/core/utils/neon_paint.dart';
-import 'package:neon_flap_2100/models/character.dart';
+import 'package:neon_flap1_game/core/constants/game_constants.dart';
+import 'package:neon_flap1_game/core/utils/neon_paint.dart';
+import 'package:neon_flap1_game/models/character.dart';
 
 /// The player's neon bird. All physics and rendering are procedural;
 /// collisions are detected manually by the game using [hitboxRadius] for

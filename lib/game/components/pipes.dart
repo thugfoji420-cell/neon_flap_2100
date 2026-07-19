@@ -1,8 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/extensions.dart';
 
-import 'package:neon_flap_2100/core/constants/game_constants.dart';
-import 'package:neon_flap_2100/core/utils/neon_paint.dart';
+import 'package:neon_flap1_game/core/constants/game_constants.dart';
+import 'package:neon_flap1_game/core/utils/neon_paint.dart';
 
 /// One neon pipe segment. Rendered procedurally; collision is handled by the
 /// parent [PipePair] via axis-aligned rects for precise, pool-friendly tests.
@@ -34,6 +34,7 @@ class PipePair extends PositionComponent {
   double worldHeight = 0;
   double topHeight = 0;
   double bottomY = 0;
+  double bottomOffsetX = 0;
   bool passed = false;
   bool active = false;
 
@@ -44,9 +45,11 @@ class PipePair extends PositionComponent {
     required double speed,
     required double worldHeight,
     required Color color,
+    double bottomOffsetX = 0,
   }) {
     this.speed = speed;
     this.worldHeight = worldHeight;
+    this.bottomOffsetX = bottomOffsetX;
     passed = false;
     active = true;
 
@@ -60,7 +63,7 @@ class PipePair extends PositionComponent {
     _bottom.color = color;
     _bottom.size = Vector2(GameConstants.pipeWidth,
         (worldHeight - bottomY).clamp(0, worldHeight));
-    _bottom.position = Vector2(0, bottomY);
+    _bottom.position = Vector2(bottomOffsetX, bottomY);
   }
 
   void recycle() {
@@ -74,11 +77,14 @@ class PipePair extends PositionComponent {
     position.x -= speed * dt;
   }
 
-  /// Right edge in world space (used for scoring).
+  /// Right edge in world space — scoring happens when the gap opening (the
+  /// trailing edge of the top pipe) passes the player, not when the offset
+  /// bottom pipe clears. The zigzag bottomOffsetX shifts the bottom pipe
+  /// visually but does not delay scoring.
   double get rightEdge => position.x + GameConstants.pipeWidth;
 
   Rect get topRect => Rect.fromLTWH(
       position.x, 0, GameConstants.pipeWidth, topHeight);
-  Rect get bottomRect => Rect.fromLTWH(position.x, bottomY,
+  Rect get bottomRect => Rect.fromLTWH(position.x + bottomOffsetX, bottomY,
       GameConstants.pipeWidth, (worldHeight - bottomY).clamp(0, worldHeight));
 }

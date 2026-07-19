@@ -1,11 +1,17 @@
 import 'package:flutter/foundation.dart';
-import 'package:neon_flap_2100/core/constants/app_constants.dart';
-import 'package:neon_flap_2100/services/storage_service.dart';
+import 'package:neon_flap1_game/core/constants/app_constants.dart';
+import 'package:neon_flap1_game/services/storage_service.dart';
 
 /// Owns the player's permanent coin balance and best score.
 ///
-/// All changes are written through [StorageService] immediately so the economy
+/// All changes are written through [StorageService] IMMEDIATELY so the economy
 /// survives app restarts, and a [ChangeNotifier] is exposed for reactive UI.
+///
+/// Threading of cloud synchronisation is delegated to [CoinSyncService]: every
+/// mutation here updates the in-memory total + persisted total and notifies
+/// listeners, and the sync service then reliably pushes the authoritative total
+/// to Firestore (with offline queueing and automatic retry), guaranteeing coins
+/// are never duplicated or lost.
 class CoinService extends ChangeNotifier {
   CoinService(this._storage);
 
@@ -23,12 +29,20 @@ class CoinService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Persists the authoritative [total] atomically. SharedPreferences writes are
+  /// atomic, so a crash between the in-memory update and this never leaves a
+  /// torn value, and we never *add* to storage (which would risk double
+  /// counting) — we always overwrite the whole total.
+  Future<void> _persist(int total) async {
+    _coins = total;
+    await _storage.setInt(StorageKeys.coins, total);
+    notifyListeners();
+  }
+
   /// Adds coins to the balance (never negative).
   Future<void> addCoins(int amount) async {
     if (amount <= 0) return;
-    _coins += amount;
-    await _storage.setInt(StorageKeys.coins, _coins);
-    notifyListeners();
+    await _persist(_coins + amount);
   }
 
   /// Attempts to spend coins. Returns false (and changes nothing) if the
@@ -36,9 +50,7 @@ class CoinService extends ChangeNotifier {
   Future<bool> spendCoins(int amount) async {
     if (amount <= 0) return true;
     if (_coins < amount) return false;
-    _coins -= amount;
-    await _storage.setInt(StorageKeys.coins, _coins);
-    notifyListeners();
+    await _persist(_coins - amount);
     return true;
   }
 
@@ -49,5 +61,19 @@ class CoinService extends ChangeNotifier {
       await _storage.setInt(StorageKeys.bestScore, _bestScore);
       notifyListeners();
     }
+  }
+
+  /// Adopt a cloud value (used during Firebase bootstrap). Does not notify
+  /// listeners a second time because the caller chains these in setup.
+  Future<void> setFromCloud(int value) async {
+    if (value == _coins) return;
+    await _persist(value);
+  }
+
+  Future<void> setBestScoreFromCloud(int value) async {
+    if (value == _bestScore) return;
+    _bestScore = value;
+    await _storage.setInt(StorageKeys.bestScore, _bestScore);
+    notifyListeners();
   }
 }

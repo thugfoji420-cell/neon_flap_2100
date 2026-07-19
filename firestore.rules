@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    function isUsernameOwner() {
+      return request.auth != null && request.resource.data.uid == request.auth.uid;
+    }
+
+    // players/{uid}
+    // Per-player profile document. Authenticated users may read any player's
+    // document because PublicProfileRepositoryImpl reads players/{uid} for
+    // arbitrary UIDs to build public profiles. Only the owner or an admin may
+    // write.
+    match /players/{uid} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isOwner(uid) || isAdmin();
+    }
+
+    // usernames/{lower}
+    // Global uniqueness index keyed by lowercased username. Any authenticated
+    // user may read to check availability. Only the owner (the uid stored in
+    // the document) or an admin may create, update, or delete entries. Update
+    // must be allowed because the claim transaction may re-set a name the user
+    // already owns (rename-back or concurrent claim race condition).
+    match /usernames/{lower} {
+      allow read: if request.auth != null;
+      allow create: if isUsernameOwner() || isAdmin();
+      allow update: if isUsernameOwner() || isAdmin();
+      allow delete: if isOwner(resource.data.uid) || isAdmin();
+    }
+
+    // leaderboard/{uid}
+    // Global leaderboard. Authenticated users may read (required for the top()
+    // query and public profile resolution). Only the owner or an admin may
+    // write. Change to `allow read: if true;` if unauthenticated leaderboard
+    // reads are required.
+    match /leaderboard/{uid} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isOwner(uid) || isAdmin();
+    }
+
+    // leaderboard_weekly/{uid}
+    match /leaderboard_weekly/{uid} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isOwner(uid) || isAdmin();
+    }
+
+    // leaderboard_monthly/{uid}
+    match /leaderboard_monthly/{uid} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isOwner(uid) || isAdmin();
+    }
+
+    // achievements/{uid}
+    // Authenticated users may read (required for public profiles). Only the
+    // owner or an admin may write.
+    match /achievements/{uid} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isOwner(uid) || isAdmin();
+    }
+
+    // inventory/{uid}
+    // Owner-only read/write.
+    match /inventory/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
+    }
+
+    // daily_rewards/{uid}
+    // Owner-only read/write.
+    match /daily_rewards/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
+    }
+
+    // settings/{uid}
+    // Owner-only read/write.
+    match /settings/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
+    }
+
+    // cloud_save/{uid}
+    // Owner-only read/write.
+    match /cloud_save/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
+    }
+  }
+}

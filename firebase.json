@@ -1,0 +1,25 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "neon-flap-2100-dfaaa",
+          "appId": "1:158761867423:android:b39859875756e1e518eaaa",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "neon-flap-2100-dfaaa",
+          "configurations": {
+            "android": "1:158761867423:android:b39859875756e1e518eaaa"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

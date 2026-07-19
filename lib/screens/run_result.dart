@@ -1,4 +1,4 @@
-import 'package:neon_flap_2100/models/difficulty_config.dart';
+import 'package:neon_flap1_game/models/difficulty_config.dart';
 
 /// Summary of a finished run, passed from the reward screen to game over.
 class RunResult {

@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-import 'package:neon_flap_2100/services/settings_service.dart';
+import 'package:neon_flap1_game/services/settings_service.dart';
 
 /// Thin wrapper around [HapticFeedback] that respects the player's vibration
 /// setting. Used for taps, coin pickups, unlocks and crashes.

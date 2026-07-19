@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
 
 /// Animated cyberpunk backdrop: a drifting perspective grid plus a slow pulse
 /// of neon colour. Reused by every menu for a cohesive premium feel.
 class AnimatedBackground extends StatefulWidget {
-  const AnimatedBackground({super.key, this.accent = NeonPalette.cyan, this.child});
+  const AnimatedBackground(
+      {super.key, this.accent = NeonPalette.cyan, this.child});
 
   final Color accent;
   final Widget? child;
@@ -28,6 +29,14 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).extension<NeonThemeColors>() ??
+        NeonThemeColors(
+          background: scheme.surface,
+          panel: scheme.surfaceContainerHigh,
+          field: scheme.surfaceContainerHighest,
+          disabled: scheme.onSurfaceVariant,
+        );
     return Stack(
       children: [
         Container(
@@ -37,7 +46,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
               radius: 1.2,
               colors: [
                 widget.accent.withOpacity(0.10),
-                NeonPalette.backgroundDeep,
+                colors.background,
               ],
             ),
           ),
@@ -50,7 +59,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
             ),
           ),
         ),
-        if (widget.child != null) widget.child!,
+        if (widget.child case final child?) child,
       ],
     );
   }

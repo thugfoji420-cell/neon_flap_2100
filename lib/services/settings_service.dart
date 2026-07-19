@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:neon_flap_2100/core/constants/app_constants.dart';
-import 'package:neon_flap_2100/models/game_settings.dart';
-import 'package:neon_flap_2100/services/storage_service.dart';
+import 'package:neon_flap1_game/core/constants/app_constants.dart';
+import 'package:neon_flap1_game/models/game_settings.dart';
+import 'package:neon_flap1_game/services/storage_service.dart';
 
 /// Holds and persists player settings (volumes, vibration). Exposes a
 /// [ChangeNotifier] so the UI and [AudioService] react to changes live.

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:neon_flap_2100/models/difficulty_config.dart';
+import 'package:neon_flap1_game/models/difficulty_config.dart';
 
 /// Lifecycle phase of a single play session.
 enum GamePhase { ready, countdown, playing, gameOver }

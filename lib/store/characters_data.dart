@@ -1,5 +1,5 @@
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/models/character.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/models/character.dart';
 
 /// The 24-character roster for the premium Character Store.
 ///

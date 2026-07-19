@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/widgets/animated_background.dart';
-import 'package:neon_flap_2100/widgets/neon_button.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/widgets/animated_background.dart';
+import 'package:neon_flap1_game/widgets/neon_button.dart';
 
 /// Credits / about screen. Shows game info and audio attributions.
 class CreditsScreen extends StatelessWidget {
@@ -10,6 +10,7 @@ class CreditsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: AnimatedBackground(
         accent: NeonPalette.magenta,
@@ -28,7 +29,7 @@ class CreditsScreen extends StatelessWidget {
                 Text(
                   'v1.0.0',
                   style: NeonTextStyle.label.copyWith(
-                    color: NeonPalette.cyan,
+                    color: scheme.primary,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -51,8 +52,7 @@ class CreditsScreen extends StatelessWidget {
                   title: 'Gameplay BGM',
                   track: 'Infected Vibes',
                   artist: 'Alejandro Magaña (A. M.)',
-                  credit:
-                      'Infected Vibes by Alejandro Magaña (A. M.)\n'
+                  credit: 'Infected Vibes by Alejandro Magaña (A. M.)\n'
                       'Licensed under Mixkit Free License\n'
                       'https://mixkit.co/free-stock-music/mood/energetic/',
                 ),
@@ -101,9 +101,9 @@ class CreditsScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _CreditTile(
                   title: 'State Management',
-                  track: 'Provider',
-                  artist: 'fluttercommunity.dev',
-                  credit: 'https://pub.dev/packages/provider',
+                  track: 'ChangeNotifier + AnimatedBuilder',
+                  artist: 'Flutter SDK',
+                  credit: 'https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html',
                 ),
                 const SizedBox(height: 12),
                 _CreditTile(
@@ -120,10 +120,10 @@ class CreditsScreen extends StatelessWidget {
                   credit: 'https://pub.dev/packages/google_mobile_ads\n'
                       'https://pub.dev/packages/in_app_purchase',
                 ),
-                const Spacer(),
+                const SizedBox(height: 32),
                 NeonButton(
                   label: 'BACK',
-                  color: NeonPalette.cyan,
+                  color: scheme.primary,
                   onPressed: () => Navigator.pop(context),
                 ),
                 const SizedBox(height: 12),
@@ -151,13 +151,15 @@ class _CreditTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final themeColors = NeonTheme.colors(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: NeonPalette.cyan.withOpacity(0.4)),
-        color: NeonPalette.backgroundDark.withOpacity(0.7),
+        border: Border.all(color: scheme.primary.withOpacity(0.4)),
+        color: themeColors.panel.withOpacity(0.9),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -25,12 +25,23 @@ enum MusicTrack {
   final String asset;
 }
 
-/// Wraps audioplayers: one low-latency player for SFX and one looping player
-/// for background music. Volumes are driven live by [SettingsService].
+/// Wraps audioplayers. A small round-robin POOL of low-latency players is
+/// used for SFX so that:
+///   * multiple sounds can overlap (e.g. a coin pickup while a tap plays), and
+///   * one shot can never stop() another in-flight sound (the original bug
+///     where a shared player was stop()+play()'d on every call, racing with
+///     rapid coin/tap bursts and silencing later sounds).
+/// Background music uses its own dedicated looping player. Volumes are driven
+/// live by [SettingsService].
 class AudioService {
   AudioService();
 
-  late final AudioPlayer _sfxPlayer;
+  /// Number of low-latency SFX players in the pool. Three is plenty for the
+  /// fastest burst (tap → coin → tap) while staying memory-cheap.
+  static const int _sfxPoolSize = 3;
+
+  final List<AudioPlayer> _sfxPlayers = [];
+  int _sfxIndex = 0;
   late final AudioPlayer _musicPlayer;
 
   double _sfxVolume = 0.8;
@@ -60,18 +71,25 @@ class AudioService {
     );
     await AudioPlayer.global.setAudioContext(context);
 
-    _sfxPlayer = AudioPlayer();
+    for (var i = 0; i < _sfxPoolSize; i++) {
+      final p = AudioPlayer();
+      await p.setAudioContext(context);
+      await p.setPlayerMode(PlayerMode.lowLatency);
+      _sfxPlayers.add(p);
+    }
     _musicPlayer = AudioPlayer();
-    await _sfxPlayer.setAudioContext(context);
     await _musicPlayer.setAudioContext(context);
-    await _sfxPlayer.setPlayerMode(PlayerMode.lowLatency);
-    await _sfxPlayer.setVolume(_sfxVolume);
-    await _musicPlayer.setVolume(_musicVolume);
   }
 
   Future<void> setSfxVolume(double v) async {
     _sfxVolume = v.clamp(0.0, 1.0);
-    await _sfxPlayer.setVolume(_sfxVolume);
+    for (final p in _sfxPlayers) {
+      try {
+        await p.setVolume(_sfxVolume);
+      } catch (_) {
+        // Ignore.
+      }
+    }
   }
 
   Future<void> setMusicVolume(double v) async {
@@ -80,10 +98,25 @@ class AudioService {
   }
 
   /// Play a one-shot sound effect. Safe to call from game loops.
+  ///
+  /// A free player is pulled from the pool (round-robin) and replayed from the
+  /// start. Because each shot uses its own player, overlapping sounds never
+  /// cancel each other, and a rapid burst of coins/taps can't leave the SFX
+  /// engine silently stopped. The play is launched fire-and-forget so the
+  /// calling frame is never blocked.
+  /// Play a one-shot sound effect. Safe to call from game loops.
+  ///
+  /// A free player is pulled from the pool (round-robin) and replayed from the
+  /// start. Because each shot uses its own player, overlapping sounds never
+  /// cancel each other. The player's volume is set once in [setSfxVolume] and
+  /// does not need to be passed on every [play] call.
   Future<void> playSfx(Sfx sfx) async {
+    if (_sfxPlayers.isEmpty) return;
+    final player = _sfxPlayers[_sfxIndex];
+    _sfxIndex = (_sfxIndex + 1) % _sfxPlayers.length;
     try {
-      await _sfxPlayer.stop();
-      await _sfxPlayer.play(AssetSource(sfx.asset), volume: _sfxVolume);
+      await player.stop();
+      await player.play(AssetSource(sfx.asset));
     } catch (_) {
       // Audio failures must never crash gameplay.
     }
@@ -131,7 +164,14 @@ class AudioService {
   }
 
   void dispose() {
-    _sfxPlayer.dispose();
+    for (final p in _sfxPlayers) {
+      try {
+        p.dispose();
+      } catch (_) {
+        // Ignore.
+      }
+    }
+    _sfxPlayers.clear();
     _musicPlayer.dispose();
   }
 }

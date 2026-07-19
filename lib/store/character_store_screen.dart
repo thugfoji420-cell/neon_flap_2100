@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:neon_flap_2100/core/di/service_locator.dart';
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/core/utils/neon_paint.dart';
-import 'package:neon_flap_2100/models/character.dart';
-import 'package:neon_flap_2100/services/audio_service.dart';
-import 'package:neon_flap_2100/services/coin_service.dart';
-import 'package:neon_flap_2100/services/owned_characters_service.dart';
-import 'package:neon_flap_2100/services/achievement_service.dart';
-import 'package:neon_flap_2100/store/characters_data.dart';
-import 'package:neon_flap_2100/widgets/animated_background.dart';
+import 'package:neon_flap1_game/core/di/service_locator.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/core/utils/neon_paint.dart';
+import 'package:neon_flap1_game/models/character.dart';
+import 'package:neon_flap1_game/services/audio_service.dart';
+import 'package:neon_flap1_game/services/coin_service.dart';
+import 'package:neon_flap1_game/services/owned_characters_service.dart';
+import 'package:neon_flap1_game/services/achievement_service.dart';
+import 'package:neon_flap1_game/store/characters_data.dart';
+import 'package:neon_flap1_game/widgets/animated_background.dart';
+import 'package:neon_flap1_game/widgets/banner_ad_slot.dart';
 
 /// Premium Character Store: 15 pilots with escalating stats. Tap to unlock
 /// (spends coins) or equip (if owned). Always reflects the persisted balance.
@@ -34,7 +35,8 @@ class CharacterStoreScreen extends StatelessWidget {
                 animation: coins,
                 builder: (_, __) => Text(
                   'BALANCE: ${coins.coins} COINS',
-                  style: NeonTextStyle.label.copyWith(color: NeonPalette.yellow),
+                  style:
+                      NeonTextStyle.label.copyWith(color: NeonPalette.yellow),
                 ),
               ),
               const SizedBox(height: 12),
@@ -54,14 +56,16 @@ class CharacterStoreScreen extends StatelessWidget {
                     itemBuilder: (c, i) => _CharacterCard(
                       character: CharactersData.roster[i],
                       owned: owned.isUnlocked(CharactersData.roster[i]),
-                      selected: owned.selectedId ==
-                          CharactersData.roster[i].id,
+                      selected: owned.selectedId == CharactersData.roster[i].id,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              NeonBackButton(label: 'BACK', onPressed: () => Navigator.pop(context)),
+              NeonBackButton(
+                  label: 'BACK', onPressed: () => Navigator.pop(context)),
+              const SizedBox(height: 12),
+              const BannerAdSlot(),
               const SizedBox(height: 16),
             ],
           ),
@@ -86,11 +90,12 @@ class _CharacterCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final coins = sl<CoinService>();
     final ownedSvc = sl<OwnedCharactersService>();
+    final themeColors = NeonTheme.colors(context);
     final border = selected
         ? NeonPalette.green
         : owned
             ? character.primary
-            : Colors.white24;
+            : themeColors.disabled;
 
     final achievementDef = AchievementDefinition.all
         .where((d) => d.achievement.characterUnlockId == character.id)
@@ -100,10 +105,13 @@ class _CharacterCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: NeonPalette.backgroundDark.withOpacity(0.6),
+        color: themeColors.panel.withOpacity(0.9),
         border: Border.all(color: border, width: selected ? 3 : 1.5),
         boxShadow: selected
-            ? [BoxShadow(color: NeonPalette.green.withOpacity(0.4), blurRadius: 16)]
+            ? [
+                BoxShadow(
+                    color: NeonPalette.green.withOpacity(0.4), blurRadius: 16)
+              ]
             : null,
       ),
       child: Column(
@@ -154,8 +162,7 @@ class _CharacterCard extends StatelessWidget {
   }
 
   void _toast(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }
 
@@ -233,7 +240,6 @@ class _StatMini extends StatelessWidget {
                 '${e.$1} ${(e.$2).toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 9,
-                  color: NeonPalette.white,
                   letterSpacing: 0.5,
                 ),
               ))
@@ -261,6 +267,7 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = NeonTheme.colors(context);
     if (selected) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -296,15 +303,15 @@ class _ActionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           color: affordable
               ? NeonPalette.yellow.withOpacity(0.15)
-              : Colors.white10,
+              : themeColors.disabled.withOpacity(0.10),
           border: Border.all(
-            color: affordable ? NeonPalette.yellow : Colors.white24,
+            color: affordable ? NeonPalette.yellow : themeColors.disabled,
           ),
         ),
         child: Text(
           '${character.price} ◉',
           style: TextStyle(
-            color: affordable ? NeonPalette.yellow : Colors.white54,
+            color: affordable ? NeonPalette.yellow : themeColors.disabled,
             fontSize: 12,
           ),
         ),
@@ -315,12 +322,14 @@ class _ActionButton extends StatelessWidget {
 
 /// Reusable neon back button.
 class NeonBackButton extends StatelessWidget {
-  const NeonBackButton({super.key, required this.label, required this.onPressed});
+  const NeonBackButton(
+      {super.key, required this.label, required this.onPressed});
   final String label;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () {
         sl<AudioService>().playSfx(Sfx.buttonClick);
@@ -333,11 +342,10 @@ class NeonBackButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: NeonPalette.cyan.withOpacity(0.6)),
-          color: NeonPalette.cyan.withOpacity(0.08),
+          border: Border.all(color: scheme.primary.withOpacity(0.6)),
+          color: scheme.primary.withOpacity(0.08),
         ),
-        child: Text(label,
-            style: NeonTextStyle.label),
+        child: Text(label, style: NeonTextStyle.label),
       ),
     );
   }

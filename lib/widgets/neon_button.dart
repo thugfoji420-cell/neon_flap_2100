@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:neon_flap_2100/core/di/service_locator.dart';
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/services/audio_service.dart';
-import 'package:neon_flap_2100/services/vibration_service.dart';
+import 'package:neon_flap1_game/core/di/service_locator.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/services/audio_service.dart';
+import 'package:neon_flap1_game/services/vibration_service.dart';
 
 /// A holographic neon button used across all menus. Plays the button sound and
 /// a subtle haptic, and squashes slightly on press for tactile feedback.
@@ -12,7 +12,7 @@ class NeonButton extends StatefulWidget {
     super.key,
     required this.label,
     this.onPressed,
-    this.color = NeonPalette.cyan,
+    this.color,
     this.width,
     this.height = 56,
     this.fontSize = 20,
@@ -21,7 +21,9 @@ class NeonButton extends StatefulWidget {
 
   final String label;
   final VoidCallback? onPressed;
-  final Color color;
+
+  /// Uses the active Material primary colour when no brand accent is supplied.
+  final Color? color;
   final double? width;
   final double height;
   final double fontSize;
@@ -35,6 +37,14 @@ class _NeonButtonState extends State<NeonButton>
     with SingleTickerProviderStateMixin {
   double _scale = 1;
   late final AnimationController _pulse;
+
+  T? _readService<T extends Object>() {
+    try {
+      return sl<T>();
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -56,15 +66,28 @@ class _NeonButtonState extends State<NeonButton>
 
   void _activate() {
     if (!widget.enabled) return;
-    sl<AudioService>().playSfx(Sfx.buttonClick);
-    sl<VibrationService>().selection();
+    _readService<AudioService>()?.playSfx(Sfx.buttonClick);
+    _readService<VibrationService>()?.selection();
     widget.onPressed?.call();
   }
 
   @override
   Widget build(BuildContext context) {
     final active = widget.enabled;
-    return GestureDetector(
+    final scheme = Theme.of(context).colorScheme;
+    final themeColors = Theme.of(context).extension<NeonThemeColors>() ??
+        NeonThemeColors(
+          background: scheme.surface,
+          panel: scheme.surfaceContainerHigh,
+          field: scheme.surfaceContainerHighest,
+          disabled: scheme.onSurfaceVariant,
+        );
+    final buttonColor = widget.color ?? scheme.primary;
+    return Semantics(
+      button: true,
+      enabled: active,
+      label: widget.label,
+      child: GestureDetector(
       onTapDown: (_) => _pressDown(),
       onTapUp: (_) => _pressUp(),
       onTapCancel: () => _pressUp(),
@@ -87,22 +110,22 @@ class _NeonButtonState extends State<NeonButton>
                   end: Alignment.bottomRight,
                   colors: active
                       ? [
-                          widget.color.withOpacity(0.22),
-                          widget.color.withOpacity(0.05),
+                          buttonColor.withOpacity(0.22),
+                          buttonColor.withOpacity(0.05),
                         ]
                       : [
-                          Colors.white.withOpacity(0.04),
-                          Colors.white.withOpacity(0.02),
+                          themeColors.disabled.withOpacity(0.12),
+                          themeColors.disabled.withOpacity(0.05),
                         ],
                 ),
                 border: Border.all(
-                  color: active ? widget.color : Colors.white24,
+                  color: active ? buttonColor : themeColors.disabled,
                   width: 2,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: active
-                        ? widget.color.withOpacity(0.6)
+                        ? buttonColor.withOpacity(0.6)
                         : Colors.transparent,
                     blurRadius: glow,
                     spreadRadius: 1,
@@ -112,19 +135,28 @@ class _NeonButtonState extends State<NeonButton>
               child: child,
             );
           },
-          child: Text(
-            widget.label,
-            style: NeonTextStyle.body.copyWith(
-              fontSize: widget.fontSize,
-              fontWeight: FontWeight.w700,
-              color: active ? NeonPalette.white : Colors.white54,
-              letterSpacing: 2,
-              shadows: active
-                  ? [Shadow(color: widget.color, blurRadius: 12)]
-                  : null,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: Text(
+              widget.label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+              style: NeonTextStyle.body.copyWith(
+                fontSize: widget.fontSize,
+                fontWeight: FontWeight.w700,
+                color: active ? scheme.onSurface : themeColors.disabled,
+                letterSpacing: 2,
+                shadows: active
+                    ? [Shadow(color: buttonColor, blurRadius: 12)]
+                    : null,
+              ),
             ),
           ),
         ),
+      ),
       ),
     );
   }

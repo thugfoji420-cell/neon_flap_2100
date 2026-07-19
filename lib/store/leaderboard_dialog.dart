@@ -1,53 +1,72 @@
 import 'package:flutter/material.dart';
 
-import 'package:neon_flap_2100/core/di/service_locator.dart';
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/models/difficulty_config.dart';
-import 'package:neon_flap_2100/services/leaderboard_service.dart';
-import 'package:neon_flap_2100/services/facebook_service.dart';
-import 'package:neon_flap_2100/store/characters_data.dart';
-import 'package:neon_flap_2100/widgets/neon_button.dart';
+import 'dart:math';
 
+import 'package:neon_flap1_game/core/di/service_locator.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/firebase/firebase_service.dart';
+import 'package:neon_flap1_game/firebase/leaderboard_service.dart';
+import 'package:neon_flap1_game/services/audio_service.dart';
+import 'package:neon_flap1_game/services/vibration_service.dart';
+import 'package:neon_flap1_game/store/characters_data.dart';
+import 'package:neon_flap1_game/store/public_profile_dialog.dart';
+import 'package:neon_flap1_game/widgets/neon_button.dart';
+import 'package:neon_flap1_game/widgets/neon_panel.dart';
+
+/// Cloud-backed leaderboard with Global / Weekly / Monthly tabs. Falls back to
+/// the local leaderboard if Firebase is unavailable.
 Future<void> showLeaderboardDialog(BuildContext context) {
   return showDialog(
     context: context,
     barrierDismissible: true,
-    builder: (ctx) {
-      return _LeaderboardDialog();
-    },
+    builder: (_) => const _CloudLeaderboardDialog(),
   );
 }
 
-class _LeaderboardDialog extends StatefulWidget {
-  const _LeaderboardDialog();
+class _CloudLeaderboardDialog extends StatefulWidget {
+  const _CloudLeaderboardDialog();
 
   @override
-  State<_LeaderboardDialog> createState() => _LeaderboardDialogState();
+  State<_CloudLeaderboardDialog> createState() =>
+      _CloudLeaderboardDialogState();
 }
 
-class _LeaderboardDialogState extends State<_LeaderboardDialog> {
+class _CloudLeaderboardDialogState extends State<_CloudLeaderboardDialog>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  final Map<LeaderboardScope, List<CloudLeaderboardEntry>> _cache = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final firebase = sl<FirebaseService>();
+    for (final scope in LeaderboardScope.values) {
+      _cache[scope] = await firebase.leaderboard.top(scope);
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final leaderboard = sl<LeaderboardService>();
-    final entries = leaderboard.entries;
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 520),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: NeonPalette.backgroundDark,
-          border: Border.all(color: NeonPalette.cyan.withOpacity(0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: NeonPalette.cyan.withOpacity(0.25),
-              blurRadius: 28,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
+      child: NeonPanel(
+        maxWidth: 520,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,170 +75,146 @@ class _LeaderboardDialogState extends State<_LeaderboardDialog> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('LEADERBOARD', style: NeonTextStyle.heading),
-                NeonButton(
-                  label: 'CLOSE',
-                  color: NeonPalette.red,
-                  fontSize: 14,
-                  height: 36,
-                  onPressed: () => Navigator.pop(context),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.refresh, color: scheme.primary),
+                      onPressed: _load,
+                      tooltip: 'Refresh',
+                    ),
+                    NeonButton(
+                      label: 'CLOSE',
+                      color: NeonPalette.red,
+                      fontSize: 14,
+                      height: 36,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 360,
-              child: entries.isEmpty
-                  ? Column(
-                      children: const [
-                        Text('NO RUNS YET', style: NeonTextStyle.label),
-                        SizedBox(height: 8),
-                        Text(
-                          'Play a game to see your scores here.',
-                          style: NeonTextStyle.body,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    )
-                  : SingleChildScrollView(
-                      child: Column(
-                        children: entries.asMap().entries.map((e) {
-                          final index = e.key;
-                          final entry = e.value;
-                          final medal = index == 0
-                              ? '🥇'
-                              : index == 1
-                                  ? '🥈'
-                                  : index == 2
-                                      ? '🥉'
-                                      : '#${index + 1}';
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _LeaderboardTile(
-                              rank: medal,
-                              score: entry.score,
-                              difficulty: entry.difficulty,
-                              characterId: entry.characterId,
-                              date: entry.date,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: NeonButton(
-                    label: 'SHARE ON FACEBOOK',
-                    color: const Color(0xFF1877F2),
-                    onPressed: () => _shareBestScore(context),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: NeonButton(
-                    label: 'RESET',
-                    color: NeonPalette.red,
-                    onPressed: () async {
-                      await leaderboard.reset();
-                      if (mounted) setState(() {});
-                    },
-                  ),
-                ),
+            TabBar(
+              controller: _tabController,
+              indicatorColor: scheme.primary,
+              labelColor: scheme.primary,
+              unselectedLabelColor: scheme.onSurfaceVariant,
+              tabs: const [
+                Tab(text: 'GLOBAL'),
+                Tab(text: 'WEEKLY'),
+                Tab(text: 'MONTHLY'),
               ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: min(360, MediaQuery.of(context).size.height * 0.55),
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : TabBarView(
+                      controller: _tabController,
+                      children: LeaderboardScope.values
+                          .map((scope) => _LeaderboardList(
+                                entries: _cache[scope] ?? const [],
+                              ))
+                          .toList(),
+                    ),
             ),
           ],
         ),
       ),
     );
   }
-  Future<void> _shareBestScore(BuildContext context) async {
-    final leaderboard = sl<LeaderboardService>();
-    final entries = leaderboard.entries;
-    if (entries.isEmpty) return;
+}
 
-    final best = entries.first;
-    final diffLabel = best.difficulty == DifficultyMode.easy
-        ? 'EASY'
-        : best.difficulty == DifficultyMode.normal
-            ? 'NORMAL'
-            : 'HARD';
+class _LeaderboardList extends StatelessWidget {
+  const _LeaderboardList({required this.entries});
 
-    final facebook = sl<FacebookService>();
-    if (!facebook.isLoggedIn) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: NeonPalette.backgroundDark,
-          title: const Text('LOGIN REQUIRED', style: NeonTextStyle.heading),
-          content: const Text('Please login with Facebook to share your score.',
-              style: NeonTextStyle.body),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK', style: NeonTextStyle.label),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+  final List<CloudLeaderboardEntry> entries;
 
-    await facebook.postScoreToFacebook(best.score, diffLabel);
-
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: NeonPalette.backgroundDark,
-          title: const Text('SHARED', style: NeonTextStyle.heading),
-          content: Text(
-            'Your best score of ${best.score} has been shared on Facebook.',
+  @override
+  Widget build(BuildContext context) {
+    if (entries.isEmpty) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Text('NO SCORES YET', style: NeonTextStyle.label),
+          SizedBox(height: 8),
+          Text(
+            'Play a game to climb the ranks!',
             style: NeonTextStyle.body,
+            textAlign: TextAlign.center,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK', style: NeonTextStyle.label),
-            ),
-          ],
-        ),
+        ],
       );
     }
+    return SingleChildScrollView(
+      child: Column(
+        children: entries.asMap().entries.map((e) {
+          final index = e.key;
+          final entry = e.value;
+          final medal = index == 0
+              ? '🥇'
+              : index == 1
+                  ? '🥈'
+                  : index == 2
+                      ? '🥉'
+                      : '#${index + 1}';
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: GestureDetector(
+              onTap: () {
+                sl<AudioService>().playSfx(Sfx.buttonClick);
+                sl<VibrationService>().selection();
+                showPublicProfileDialog(context, entry.uid);
+              },
+              child: _LeaderboardTile(
+                rank: medal,
+                username: entry.username,
+                score: entry.score,
+                bird: CharactersData.byId(entry.avatar).name,
+                isMe: entry.uid == sl<FirebaseService>().uid,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }
 
 class _LeaderboardTile extends StatelessWidget {
   const _LeaderboardTile({
     required this.rank,
+    required this.username,
     required this.score,
-    required this.difficulty,
-    required this.characterId,
-    required this.date,
+    required this.bird,
+    this.isMe = false,
   });
 
   final String rank;
+  final String username;
   final int score;
-  final DifficultyMode difficulty;
-  final String characterId;
-  final DateTime date;
+  final String bird;
+  final bool isMe;
 
   @override
   Widget build(BuildContext context) {
-    final character = CharactersData.byId(characterId);
-    final diffLabel = difficulty == DifficultyMode.easy
-        ? 'EASY'
-        : difficulty == DifficultyMode.normal
-            ? 'NORMAL'
-            : 'HARD';
+    final themeColors = NeonTheme.colors(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: NeonPalette.cyan.withOpacity(0.35)),
-        color: NeonPalette.backgroundDark.withOpacity(0.7),
+        border: Border.all(
+          color: isMe
+              ? NeonPalette.green.withOpacity(0.9)
+              : Theme.of(context).colorScheme.primary.withOpacity(0.35),
+        ),
+        color: isMe
+            ? NeonPalette.green.withOpacity(0.08)
+            : themeColors.panel.withOpacity(0.9),
       ),
       child: Row(
         children: [
@@ -229,18 +224,23 @@ class _LeaderboardTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$score PTS',
-                    style: NeonTextStyle.heading.copyWith(fontSize: 16)),
                 Text(
-                  '${character.name.toUpperCase()}  ·  $diffLabel',
+                  isMe ? '$username (YOU)' : username,
+                  style: NeonTextStyle.heading.copyWith(fontSize: 16),
+                ),
+                Text(
+                  bird.toUpperCase(),
                   style: NeonTextStyle.label.copyWith(fontSize: 12),
                 ),
               ],
             ),
           ),
           Text(
-            '${date.day}/${date.month}/${date.year}',
-            style: NeonTextStyle.body.copyWith(fontSize: 12),
+            '$score PTS',
+            style: NeonTextStyle.body.copyWith(
+              color: NeonPalette.yellow,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),

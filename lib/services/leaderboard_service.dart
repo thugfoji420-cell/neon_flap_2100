@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:neon_flap_2100/core/constants/app_constants.dart';
-import 'package:neon_flap_2100/models/difficulty_config.dart';
-import 'package:neon_flap_2100/services/storage_service.dart';
+import 'package:neon_flap1_game/core/constants/app_constants.dart';
+import 'package:neon_flap1_game/models/difficulty_config.dart';
+import 'package:neon_flap1_game/services/storage_service.dart';
 
 class LeaderboardEntry {
   const LeaderboardEntry({

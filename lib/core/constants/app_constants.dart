@@ -13,8 +13,7 @@ class AppConstants {
 
   /// Google AdMob test identifiers. Replace with production ids before release.
   /// Banner appears only during gameplay; rewarded drives the reward screen.
-  static const String bannerAdUnitId =
-      'ca-app-pub-4514520183755342/6809202498';
+  static const String bannerAdUnitId = 'ca-app-pub-4514520183755342/6809202498';
   static const String rewardedAdUnitId =
       'ca-app-pub-4514520183755342/7113444507';
   static const String rewardedAdUnitId2 =
@@ -26,11 +25,11 @@ class AppConstants {
 
   /// Base URL used for the privacy / terms documents required by the stores.
   static const String privacyPolicyUrl =
-      'https://thugfoji420-cell.github.io/neon_flap_2100/';
+      'https://thugfoji420-cell.github.io/floppy-bird/';
   static const String termsOfServiceUrl =
-      'https://thugfoji420-cell.github.io/neon_flap_2100/terms';
+      'https://thugfoji420-cell.github.io/floppy-bird/terms';
   static const String dataDeletionUrl =
-      'https://thugfoji420-cell.github.io/neon_flap_2100/data-deletion.html';
+      'https://thugfoji420-cell.github.io/floppy-bird/data-deletion.html';
 }
 
 /// Keys used for persistent local storage (SharedPreferences).
@@ -44,12 +43,12 @@ class StorageKeys {
   static const String hasSeenAppOpenAd = 'nf_has_seen_app_open_ad';
   static const String settings = 'nf_settings';
   static const String pendingRewardedCoins = 'nf_pending_rewarded_coins';
+  static const String pendingCloudCoins = 'nf_pending_cloud_coins';
+  static const String coinSyncPending = 'nf_coin_sync_pending';
   static const String playerStats = 'nf_player_stats';
   static const String achievementProgress = 'nf_achievement_progress';
   static const String leaderboard = 'nf_leaderboard';
-  static const String facebookUserId = 'nf_facebook_user_id';
-  static const String facebookUserName = 'nf_facebook_user_name';
-  static const String facebookUserEmail = 'nf_facebook_user_email';
-  static const String facebookAccessToken = 'nf_facebook_access_token';
-  static const String facebookSyncTimestamp = 'nf_facebook_sync_timestamp';
+  static const String completedGames = 'nf_completed_games';
+  static const String lastInterstitialGame = 'nf_last_interstitial_game';
+  static const String themeMode = 'nf_theme_mode';
 }

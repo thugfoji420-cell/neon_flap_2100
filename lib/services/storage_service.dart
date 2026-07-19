@@ -23,5 +23,8 @@ class StorageService {
       _prefs.setStringList(key, value);
   List<String>? getStringList(String key) => _prefs.getStringList(key);
 
+  Future<bool> setBool(String key, bool value) => _prefs.setBool(key, value);
+  bool? getBool(String key) => _prefs.getBool(key);
+
   Future<bool> remove(String key) => _prefs.remove(key);
 }

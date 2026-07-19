@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:neon_flap_2100/core/constants/app_constants.dart';
-import 'package:neon_flap_2100/services/coin_service.dart';
-import 'package:neon_flap_2100/services/owned_characters_service.dart';
-import 'package:neon_flap_2100/services/storage_service.dart';
-import 'package:neon_flap_2100/store/characters_data.dart';
+import 'package:neon_flap1_game/core/constants/app_constants.dart';
+import 'package:neon_flap1_game/services/coin_service.dart';
+import 'package:neon_flap1_game/services/owned_characters_service.dart';
+import 'package:neon_flap1_game/services/storage_service.dart';
+import 'package:neon_flap1_game/store/characters_data.dart';
 
 class Achievement {
   const Achievement({
@@ -531,8 +531,9 @@ class AchievementService {
         if (def.achievement.rewardCoins > 0) {
           await coins.addCoins(def.achievement.rewardCoins);
         }
-        if (def.achievement.characterUnlockId != null) {
-          final character = CharactersData.byId(def.achievement.characterUnlockId!);
+        final unlockId = def.achievement.characterUnlockId;
+        if (unlockId != null) {
+          final character = CharactersData.byId(unlockId);
           if (!owned.isUnlocked(character)) {
             final list = _storage.getStringList(StorageKeys.unlockedCharacters) ?? [];
             if (!list.contains(character.id)) {

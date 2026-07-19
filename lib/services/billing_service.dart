@@ -3,16 +3,24 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
-import 'package:neon_flap_2100/models/store_product.dart';
-import 'package:neon_flap_2100/services/coin_service.dart';
+import 'package:neon_flap1_game/models/store_product.dart';
+import 'package:neon_flap1_game/services/coin_service.dart';
 
 /// Integrates Google Play Billing for the Coin Shop.
 ///
 /// Products are consumable coin packs. Purchases are acknowledged via
 /// [InAppPurchase.completePurchase] (required by Play policy) and the coin
-/// balance is credited only after a successful, verified purchase. For a
-/// production release, add server-side signature verification here; the local
-/// check below guards against unknown product ids.
+/// balance is credited only after a successful, verified purchase.
+///
+/// ## Receipt verification
+/// This is a client-only integration — there is no backend server to verify
+/// purchase tokens against the Google Play Developer API. The game uses the
+/// standard `purchase.status == PurchaseStatus.purchased` check provided by
+/// the `in_app_purchase` plugin, which reflects Google Play's own validation.
+/// For a production release with real money, add a server-side endpoint that
+/// verifies the purchase receipt via the Google Play Developer API before
+/// crediting coins. Without it, a compromised client could spoof purchases
+/// on a rooted device.
 class BillingService extends ChangeNotifier {
   BillingService(this._coins);
 
@@ -83,14 +91,19 @@ class BillingService extends ChangeNotifier {
 
   /// Verifies the product id against our catalogue and credits the balance.
   Future<void> _creditIfValid(PurchaseDetails purchase) async {
-    final pack = CoinPack.catalogue.firstWhere(
-      (p) => p.productId == purchase.productID,
-      orElse: () => CoinPack.catalogue.first,
-    );
-    if (pack.productId != purchase.productID) return; // unknown product
+    final pack = _matchPack(purchase.productID);
+    if (pack == null) return; // unknown product — do not credit.
     await _coins.addCoins(pack.coins);
     lastPurchased.value = pack;
     notifyListeners();
+  }
+
+  /// Returns the [CoinPack] matching [productId], or null if unknown.
+  CoinPack? _matchPack(String productId) {
+    for (final p in CoinPack.catalogue) {
+      if (p.productId == productId) return p;
+    }
+    return null;
   }
 
   /// Refresh available products (e.g. after returning from settings).

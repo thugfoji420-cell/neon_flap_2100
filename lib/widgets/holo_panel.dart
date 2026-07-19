@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
 
 /// A translucent holographic panel with a glowing neon border. Used to frame
 /// content on the menus and dialogs.
@@ -18,6 +18,7 @@ class HoloPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Container(
       padding: padding,
       decoration: BoxDecoration(
@@ -25,7 +26,7 @@ class HoloPanel extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             color.withOpacity(0.10),
-            Colors.white.withOpacity(0.03),
+            onSurface.withOpacity(0.03),
           ],
         ),
         border: Border.all(color: color.withOpacity(0.6), width: 1.5),

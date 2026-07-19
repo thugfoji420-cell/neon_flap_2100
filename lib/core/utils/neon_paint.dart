@@ -145,10 +145,13 @@ void _neonCircleShape(
   canvas.drawCircle(center, radius, neonStroke(_rim(color), stroke));
 }
 
-/// Draws a stylised neon bird facing right, centred on [center] and sized to
-/// fit within a box of side [s]. [wingPhase] animates the wing flap (radians),
-/// [tilt] rotates the whole bird (e.g. to dive/rise with velocity). Shared by
-/// the in-game player and the store preview so the shape stays consistent.
+/// Draws a stylised, higher-fidelity NEON DRONE facing right, centred on
+/// [center] and sized to fit within a box of side [s]. [wingPhase] animates the
+/// rotor/wing flap (radians) and [tilt] rotates the whole craft (e.g. to
+/// dive/rise with velocity). The anchor, centre and size semantics are identical
+/// to the previous bird so collision (based on [size]) and all call-sites stay
+/// unchanged. Shared by the in-game player and the store preview so every skin
+/// keeps a consistent futuristic style.
 void drawNeonBird(
   Canvas canvas,
   Offset center,
@@ -163,62 +166,85 @@ void drawNeonBird(
   canvas.translate(center.dx, center.dy);
   canvas.rotate(tilt);
 
-  // Soft aura.
+  // Wide ambient aura.
   canvas.drawCircle(
-      Offset.zero, s * 0.5, neonFill(primary, glow: glow * 1.6, alpha: 0.08));
+      Offset.zero, s * 0.5, neonFill(primary, glow: glow * 1.8, alpha: 0.10));
 
-  // Tail (back-left, forked).
+  // Engine thruster plume (animated, behind the hull).
+  final thrust = (0.55 + 0.45 * (0.5 + 0.5 * sin(wingPhase * 1.7)));
+  final flame = Path()
+    ..moveTo(-s * 0.30, -s * 0.05)
+    ..lineTo(-s * 0.30, s * 0.05)
+    ..lineTo(-s * (0.30 + 0.42 * thrust), 0)
+    ..close();
+  canvas.drawPath(flame, neonFill(accent, glow: glow * 1.4, alpha: 0.30));
+  canvas.drawPath(flame, neonGlowStroke(accent, s * 0.02, glow: glow));
+  canvas.drawPath(flame, neonStroke(_rim(accent), s * 0.012));
+
+  // Twin tail fins (back-left).
   final tail = Path()
-    ..moveTo(-s * 0.22, 0)
-    ..lineTo(-s * 0.48, -s * 0.14)
-    ..lineTo(-s * 0.38, 0)
-    ..lineTo(-s * 0.48, s * 0.14)
+    ..moveTo(-s * 0.20, 0)
+    ..lineTo(-s * 0.46, -s * 0.18)
+    ..lineTo(-s * 0.36, 0)
+    ..lineTo(-s * 0.46, s * 0.18)
     ..close();
   _neonPathShape(canvas, tail, accent,
-      glow: glow * 0.8, fillAlpha: 1.0, stroke: s * 0.03);
+      glow: glow * 0.8, fillAlpha: 1.0, stroke: s * 0.025);
 
-  // Body (oval).
-  final body = Path()
-    ..addOval(Rect.fromCenter(
-        center: Offset(-s * 0.02, s * 0.02),
-        width: s * 0.66,
-        height: s * 0.46));
-  _neonPathShape(canvas, body, primary,
-      glow: glow, fillAlpha: 1.0, stroke: s * 0.045);
+  // Main hull (sleek tapered body).
+  final hull = Path()
+    ..moveTo(s * 0.40, 0)
+    ..quadraticBezierTo(s * 0.30, -s * 0.26, -s * 0.06, -s * 0.20)
+    ..quadraticBezierTo(-s * 0.30, -s * 0.14, -s * 0.30, 0)
+    ..quadraticBezierTo(-s * 0.30, s * 0.14, -s * 0.06, s * 0.20)
+    ..quadraticBezierTo(s * 0.30, s * 0.26, s * 0.40, 0)
+    ..close();
+  _neonPathShape(canvas, hull, primary,
+      glow: glow, fillAlpha: 1.0, stroke: s * 0.04);
 
-  // Wing (animated flap).
+  // Hull panel line for a more engineered look.
+  final panel = Path()
+    ..moveTo(-s * 0.26, -s * 0.02)
+    ..quadraticBezierTo(0, -s * 0.10, s * 0.34, -s * 0.02);
+  canvas.drawPath(
+      panel, neonStroke(accent.withOpacity(0.9), s * 0.012, glow: glow * 0.6));
+
+  // Rotor/wing (animated flap) with energy struts.
   final wingAngle = sin(wingPhase) * 0.5 - 0.15;
   canvas.save();
   canvas.translate(-s * 0.02, -s * 0.02);
   canvas.rotate(wingAngle);
   final wing = Path()
     ..moveTo(0, 0)
-    ..lineTo(-s * 0.24, -s * 0.32)
-    ..lineTo(s * 0.16, -s * 0.05)
+    ..lineTo(-s * 0.22, -s * 0.36)
+    ..lineTo(s * 0.18, -s * 0.04)
     ..close();
   _neonPathShape(canvas, wing, accent,
-      glow: glow, fillAlpha: 1.0, stroke: s * 0.04);
+      glow: glow, fillAlpha: 0.95, stroke: s * 0.03);
+  // Wing strut.
+  canvas.drawLine(Offset(-s * 0.02, -s * 0.02),
+      Offset(-s * 0.18, -s * 0.30), neonStroke(accent, s * 0.01, glow: glow * 0.5));
   canvas.restore();
 
-  // Head.
-  final headC = Offset(s * 0.24, -s * 0.06);
-  _neonCircleShape(canvas, headC, s * 0.16, primary,
-      glow: glow, fillAlpha: 1.0, stroke: s * 0.045);
+  // Forward sensor pod / head.
+  final headC = Offset(s * 0.22, -s * 0.06);
+  _neonCircleShape(canvas, headC, s * 0.15, primary,
+      glow: glow, fillAlpha: 1.0, stroke: s * 0.04);
 
-  // Beak (triangle pointing right).
-  final beak = Path()
-    ..moveTo(s * 0.37, -s * 0.07)
-    ..lineTo(s * 0.53, -s * 0.02)
-    ..lineTo(s * 0.37, s * 0.04)
+  // Energy cannon (points right).
+  final cannon = Path()
+    ..moveTo(s * 0.34, -s * 0.06)
+    ..lineTo(s * 0.52, -s * 0.02)
+    ..lineTo(s * 0.34, s * 0.04)
     ..close();
-  _neonPathShape(canvas, beak, const Color(0xFFFFD54A),
-      glow: glow * 0.7, fillAlpha: 1.0, stroke: s * 0.03);
+  _neonPathShape(canvas, cannon, const Color(0xFFFFD54A),
+      glow: glow * 0.7, fillAlpha: 1.0, stroke: s * 0.025);
 
-  // Eye.
-  final eyeC = Offset(s * 0.28, -s * 0.10);
-  canvas.drawCircle(eyeC, s * 0.06, neonGlowStroke(accent, s * 0.03, glow: glow * 0.6));
-  canvas.drawCircle(eyeC, s * 0.05, Paint()..color = const Color(0xFFFFFFFF));
-  canvas.drawCircle(eyeC, s * 0.022, Paint()..color = const Color(0xFF07131F));
+  // Optical sensor (eye).
+  final eyeC = Offset(s * 0.26, -s * 0.10);
+  canvas.drawCircle(eyeC, s * 0.07, neonGlowStroke(accent, s * 0.03, glow: glow * 0.6));
+  canvas.drawCircle(eyeC, s * 0.055, Paint()..color = const Color(0xFFFFFFFF));
+  canvas.drawCircle(eyeC, s * 0.026, Paint()..color = const Color(0xFF07131F));
 
   canvas.restore();
 }

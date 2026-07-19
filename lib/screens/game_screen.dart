@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
 import 'package:flame/game.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-import 'package:neon_flap_2100/core/di/service_locator.dart';
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/game/game_controller.dart';
-import 'package:neon_flap_2100/game/neon_flap_game.dart';
-import 'package:neon_flap_2100/models/difficulty_config.dart';
-import 'package:neon_flap_2100/screens/reward_screen.dart';
-import 'package:neon_flap_2100/services/ad_service.dart';
-import 'package:neon_flap_2100/services/audio_service.dart';
-import 'package:neon_flap_2100/services/coin_service.dart';
-import 'package:neon_flap_2100/services/difficulty_service.dart';
-import 'package:neon_flap_2100/services/leaderboard_service.dart';
-import 'package:neon_flap_2100/services/owned_characters_service.dart';
-import 'package:neon_flap_2100/widgets/neon_button.dart';
+import 'package:neon_flap1_game/core/di/service_locator.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/game/game_controller.dart';
+import 'package:neon_flap1_game/game/neon_flap_game.dart';
+import 'package:neon_flap1_game/models/difficulty_config.dart';
+import 'package:neon_flap1_game/screens/reward_screen.dart';
+import 'package:neon_flap1_game/services/ad_service.dart';
+import 'package:neon_flap1_game/services/audio_service.dart';
+import 'package:neon_flap1_game/services/coin_service.dart';
+import 'package:neon_flap1_game/services/difficulty_service.dart';
+import 'package:neon_flap1_game/services/leaderboard_service.dart';
+import 'package:neon_flap1_game/services/owned_characters_service.dart';
+import 'package:neon_flap1_game/widgets/banner_ad_slot.dart';
+import 'package:neon_flap1_game/widgets/neon_button.dart';
 
 /// The gameplay screen: hosts the Flame game, the HUD overlay, the countdown
 /// and the in-game banner ad. On death it routes to the reward screen.
@@ -38,20 +38,26 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = GameController();
-    _controller.reset(DifficultyConfig.preset(widget.mode));
-    final owned = sl<OwnedCharactersService>();
-    _game = NeonFlapGame(
-      controller: _controller,
-      character: owned.selected,
-      difficulty: DifficultyService(widget.mode),
-    );
-    _controller.addListener(_onControllerChanged);
-    sl<AudioService>().stopMusic();
-    sl<AudioService>().playMusic(MusicTrack.game);
-    sl<AdService>().loadBanner();
-    sl<AdService>().loadInterstitialAd();
-    _startCountdown();
+    try {
+      _controller = GameController();
+      _controller.reset(DifficultyConfig.preset(widget.mode));
+      final owned = sl<OwnedCharactersService>();
+      _game = NeonFlapGame(
+        controller: _controller,
+        character: owned.selected,
+        difficulty: DifficultyService(widget.mode),
+      );
+      _controller.addListener(_onControllerChanged);
+      sl<AudioService>().stopMusic();
+      sl<AudioService>().playMusic(MusicTrack.game);
+      sl<AdService>().loadInterstitialAd();
+      _game.loadFuture.then((_) => _startCountdown());
+    } catch (e) {
+      sl<AudioService>().stopMusic();
+      if (mounted) {
+        Navigator.of(context).popUntil((r) => r.isFirst);
+      }
+    }
   }
 
   void _startCountdown() {
@@ -85,7 +91,8 @@ class _GameScreenState extends State<GameScreen> {
     final earned = _controller.earnedCoins;
     final score = _controller.score;
     final best = sl<CoinService>().bestScore;
-    sl<LeaderboardService>().submit(score, widget.mode, sl<OwnedCharactersService>().selectedId);
+    sl<LeaderboardService>()
+        .submit(score, widget.mode, sl<OwnedCharactersService>().selectedId);
     if (!mounted) return;
     await showRewardDialog(
       context: context,
@@ -96,8 +103,6 @@ class _GameScreenState extends State<GameScreen> {
       characterId: sl<OwnedCharactersService>().selectedId,
       totalFlaps: _controller.totalFlaps,
     );
-    // Banner only lives during gameplay.
-    sl<AdService>().disposeBanner();
   }
 
   void _togglePause() {
@@ -112,7 +117,6 @@ class _GameScreenState extends State<GameScreen> {
 
   void _quit() {
     _game.resumeEngine();
-    sl<AdService>().disposeBanner();
     sl<AudioService>().stopMusic();
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
@@ -120,7 +124,6 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _controller.removeListener(_onControllerChanged);
-    sl<AdService>().disposeBanner();
     _game.dispose();
     super.dispose();
   }
@@ -142,7 +145,7 @@ class _GameScreenState extends State<GameScreen> {
                 IgnorePointer(
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(10),
                       child: Column(
                         children: [
                           Row(
@@ -152,7 +155,8 @@ class _GameScreenState extends State<GameScreen> {
                                 animation: _controller,
                                 builder: (_, __) => Text(
                                   '${_controller.score}',
-                                  style: NeonTextStyle.title.copyWith(fontSize: 40),
+                                  style: NeonTextStyle.title
+                                      .copyWith(fontSize: 32),
                                 ),
                               ),
                               AnimatedBuilder(
@@ -160,10 +164,11 @@ class _GameScreenState extends State<GameScreen> {
                                 builder: (_, __) => Row(
                                   children: [
                                     const Icon(Icons.circle,
-                                        size: 14, color: NeonPalette.yellow),
-                                    const SizedBox(width: 6),
+                                        size: 12, color: NeonPalette.yellow),
+                                    const SizedBox(width: 4),
                                     Text('${_controller.collectedCoins}',
-                                        style: NeonTextStyle.heading),
+                                        style: NeonTextStyle.heading
+                                            .copyWith(fontSize: 18)),
                                   ],
                                 ),
                               ),
@@ -189,7 +194,8 @@ class _GameScreenState extends State<GameScreen> {
                 // Pause overlay.
                 if (_paused)
                   Container(
-                    color: Colors.black54,
+                    color:
+                        Theme.of(context).colorScheme.scrim.withOpacity(0.54),
                     child: Center(
                       child: HoloPausePanel(
                         onResume: _togglePause,
@@ -201,7 +207,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
           // Banner ad below the game.
-          const _BannerAdSlot(),
+          const BannerAdSlot(),
         ],
       ),
     );
@@ -214,6 +220,8 @@ class _PauseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final themeColors = NeonTheme.colors(context);
     return GestureDetector(
       onTap: () {
         sl<AudioService>().playSfx(Sfx.buttonClick);
@@ -223,10 +231,10 @@ class _PauseButton extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: NeonPalette.cyan.withOpacity(0.7)),
-          color: NeonPalette.backgroundDark.withOpacity(0.6),
+          border: Border.all(color: scheme.primary.withOpacity(0.7)),
+          color: themeColors.panel.withOpacity(0.88),
         ),
-        child: const Icon(Icons.pause, color: NeonPalette.cyan),
+        child: Icon(Icons.pause, color: scheme.primary),
       ),
     );
   }
@@ -243,49 +251,26 @@ class HoloPausePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: 260,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: NeonPalette.backgroundDark,
-        border: Border.all(color: NeonPalette.cyan.withOpacity(0.6)),
+        color: NeonTheme.colors(context).panel,
+        border: Border.all(color: scheme.primary.withOpacity(0.6)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text('PAUSED', style: NeonTextStyle.heading),
           const SizedBox(height: 20),
-          NeonButton(label: 'RESUME', color: NeonPalette.green,
-              onPressed: onResume),
+          NeonButton(
+              label: 'RESUME', color: NeonPalette.green, onPressed: onResume),
           const SizedBox(height: 12),
-          NeonButton(label: 'QUIT', color: NeonPalette.red,
-              onPressed: onQuit),
+          NeonButton(label: 'QUIT', color: NeonPalette.red, onPressed: onQuit),
         ],
       ),
-    );
-  }
-}
-
-class _BannerAdSlot extends StatelessWidget {
-  const _BannerAdSlot();
-
-  @override
-  Widget build(BuildContext context) {
-    final ads = sl<AdService>();
-    // Rebuild when the banner finishes loading/fails so it actually appears.
-    return AnimatedBuilder(
-      animation: ads,
-      builder: (_, __) {
-        final banner = ads.bannerAd;
-        if (banner == null) {
-          return const SizedBox.shrink();
-        }
-        return SizedBox(
-          height: 50,
-          child: AdWidget(ad: banner),
-        );
-      },
     );
   }
 }

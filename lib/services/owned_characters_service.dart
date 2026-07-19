@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:neon_flap_2100/core/constants/app_constants.dart';
-import 'package:neon_flap_2100/models/character.dart';
-import 'package:neon_flap_2100/services/coin_service.dart';
-import 'package:neon_flap_2100/services/storage_service.dart';
-import 'package:neon_flap_2100/store/characters_data.dart';
+import 'package:neon_flap1_game/core/constants/app_constants.dart';
+import 'package:neon_flap1_game/models/character.dart';
+import 'package:neon_flap1_game/services/coin_service.dart';
+import 'package:neon_flap1_game/services/storage_service.dart';
+import 'package:neon_flap1_game/store/characters_data.dart';
 
 /// Tracks which characters are unlocked and which one is selected.
 class OwnedCharactersService extends ChangeNotifier {

@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 
-import 'package:neon_flap_2100/core/utils/neon_paint.dart';
+import 'package:neon_flap1_game/core/utils/neon_paint.dart';
 
 /// A collectible neon coin. Horizontal drift is applied here; the game applies
 /// coin-magnet attraction and collision detection against the player.

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:neon_flap_2100/core/di/service_locator.dart';
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/models/store_product.dart';
-import 'package:neon_flap_2100/services/audio_service.dart';
-import 'package:neon_flap_2100/services/billing_service.dart';
-import 'package:neon_flap_2100/services/coin_service.dart';
-import 'package:neon_flap_2100/store/character_store_screen.dart';
-import 'package:neon_flap_2100/widgets/animated_background.dart';
+import 'package:neon_flap1_game/core/di/service_locator.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/models/store_product.dart';
+import 'package:neon_flap1_game/services/audio_service.dart';
+import 'package:neon_flap1_game/services/billing_service.dart';
+import 'package:neon_flap1_game/services/coin_service.dart';
+import 'package:neon_flap1_game/store/character_store_screen.dart';
+import 'package:neon_flap1_game/widgets/animated_background.dart';
 
 /// Coin Shop powered by Google Play Billing. Purchases are consumable coin
 /// packs; the balance is credited only after a verified, acknowledged purchase.
@@ -65,11 +65,12 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                 animation: coins,
                 builder: (_, __) => Text(
                   'BALANCE: ${coins.coins} COINS',
-                  style: NeonTextStyle.label.copyWith(color: NeonPalette.yellow),
+                  style:
+                      NeonTextStyle.label.copyWith(color: NeonPalette.yellow),
                 ),
               ),
               const SizedBox(height: 12),
-              if (_message != null)
+              if (_message case final msg?)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.all(10),
@@ -78,8 +79,9 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                     color: NeonPalette.green.withOpacity(0.15),
                     border: Border.all(color: NeonPalette.green),
                   ),
-                  child: Text(_message!,
-                      style: NeonTextStyle.label.copyWith(color: NeonPalette.green)),
+                  child: Text(msg,
+                      style: NeonTextStyle.label
+                          .copyWith(color: NeonPalette.green)),
                 ),
               const SizedBox(height: 12),
               Expanded(
@@ -101,7 +103,8 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              NeonBackButton(label: 'BACK', onPressed: () => Navigator.pop(context)),
+              NeonBackButton(
+                  label: 'BACK', onPressed: () => Navigator.pop(context)),
               const SizedBox(height: 16),
             ],
           ),
@@ -118,6 +121,7 @@ class _PackRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final billing = sl<BillingService>();
+    final themeColors = NeonTheme.colors(context);
     final details = billing.detailsFor(pack.productId);
     final price = details?.price ?? pack.priceLabel;
     final canBuy = billing.available && details != null;
@@ -126,7 +130,7 @@ class _PackRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: NeonPalette.backgroundDark.withOpacity(0.6),
+        color: themeColors.panel.withOpacity(0.9),
         border: Border.all(color: NeonPalette.yellow.withOpacity(0.5)),
       ),
       child: Row(
@@ -168,14 +172,14 @@ class _PackRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 color: canBuy
                     ? NeonPalette.yellow.withOpacity(0.2)
-                    : Colors.white10,
+                    : themeColors.disabled.withOpacity(0.10),
                 border: Border.all(
-                  color: canBuy ? NeonPalette.yellow : Colors.white24,
+                  color: canBuy ? NeonPalette.yellow : themeColors.disabled,
                 ),
               ),
               child: Text(price,
                   style: TextStyle(
-                    color: canBuy ? NeonPalette.yellow : Colors.white54,
+                    color: canBuy ? NeonPalette.yellow : themeColors.disabled,
                     fontWeight: FontWeight.w700,
                   )),
             ),

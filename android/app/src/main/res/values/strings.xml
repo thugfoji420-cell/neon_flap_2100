@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Neon Flap 2100</string>
-    <string name="facebook_app_id">1013863091243656</string>
-    <string name="fb_login_protocol_scheme">fb1013863091243656</string>
-    <string name="facebook_client_token">6e2a4a8072546292a7cf541ebd92806c</string>
+    <!-- Web (server) OAuth client ID used by google_sign_in to show the Google
+         account chooser and mint an idToken for Firebase. Keep in sync with the
+         Web client in the Firebase console (Authentication > Sign-in method). -->
+    <string name="default_web_client_id">158761867423-hlef2i3m28hu1r8ht1sjpiqgfo0oqr9m.apps.googleusercontent.com</string>
 </resources>

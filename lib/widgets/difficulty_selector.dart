@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:neon_flap_2100/core/di/service_locator.dart';
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/models/difficulty_config.dart';
-import 'package:neon_flap_2100/services/audio_service.dart';
-import 'package:neon_flap_2100/widgets/neon_button.dart';
+import 'package:neon_flap1_game/core/di/service_locator.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/models/difficulty_config.dart';
+import 'package:neon_flap1_game/services/audio_service.dart';
+import 'package:neon_flap1_game/widgets/neon_button.dart';
 
 /// Presents the three difficulty modes and resolves with the chosen one.
 /// Shown when the player taps Play on the main menu.
@@ -22,6 +22,8 @@ class _DifficultySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NeonTheme.colors(context);
+    final scheme = Theme.of(context).colorScheme;
     final modes = [
       (
         DifficultyMode.easy,
@@ -44,8 +46,8 @@ class _DifficultySheet extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: NeonPalette.backgroundDark,
-        border: Border.all(color: NeonPalette.cyan.withOpacity(0.5)),
+        color: colors.panel,
+        border: Border.all(color: scheme.primary.withOpacity(0.5)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

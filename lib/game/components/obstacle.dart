@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 
-import 'package:neon_flap_2100/core/constants/game_constants.dart';
-import 'package:neon_flap_2100/core/utils/neon_paint.dart';
+import 'package:neon_flap1_game/core/constants/game_constants.dart';
+import 'package:neon_flap1_game/core/utils/neon_paint.dart';
 
 /// Behaviour of a non-pipe obstacle.
 enum ObstacleKind {

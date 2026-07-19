@@ -1,23 +1,24 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
 
-import 'package:neon_flap_2100/core/constants/game_constants.dart';
-import 'package:neon_flap_2100/core/di/service_locator.dart';
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/game/components/background.dart';
-import 'package:neon_flap_2100/game/components/coin.dart';
-import 'package:neon_flap_2100/game/components/glow_particle.dart';
-import 'package:neon_flap_2100/game/components/obstacle.dart';
-import 'package:neon_flap_2100/game/components/player.dart';
-import 'package:neon_flap_2100/game/components/pipes.dart';
-import 'package:neon_flap_2100/game/game_controller.dart';
-import 'package:neon_flap_2100/models/character.dart';
-import 'package:neon_flap_2100/services/audio_service.dart';
-import 'package:neon_flap_2100/services/coin_service.dart';
-import 'package:neon_flap_2100/services/difficulty_service.dart';
-import 'package:neon_flap_2100/services/vibration_service.dart';
+import 'package:neon_flap1_game/core/constants/game_constants.dart';
+import 'package:neon_flap1_game/core/di/service_locator.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/game/components/background.dart';
+import 'package:neon_flap1_game/game/components/coin.dart';
+import 'package:neon_flap1_game/game/components/glow_particle.dart';
+import 'package:neon_flap1_game/game/components/obstacle.dart';
+import 'package:neon_flap1_game/game/components/player.dart';
+import 'package:neon_flap1_game/game/components/pipes.dart';
+import 'package:neon_flap1_game/game/game_controller.dart';
+import 'package:neon_flap1_game/models/character.dart';
+import 'package:neon_flap1_game/services/audio_service.dart';
+import 'package:neon_flap1_game/services/coin_service.dart';
+import 'package:neon_flap1_game/services/difficulty_service.dart';
+import 'package:neon_flap1_game/services/vibration_service.dart';
 
 /// The main Flame game. Owns the world, the spawn/object-pool system, the
 /// dynamic difficulty application and all collision/scoring rules. The Flutter
@@ -33,9 +34,10 @@ class NeonFlapGame extends FlameGame {
   final Character character;
   final DifficultyService difficulty;
 
-  late Player player;
-  late CityBackground bg;
-  late Ground ground;
+  Player? player;
+  CityBackground? bg;
+  Ground? ground;
+  final Vector2 _canvasSize = Vector2.zero();
 
   final List<PipePair> _pipePool = [];
   final List<Coin> _coinPool = [];
@@ -48,27 +50,36 @@ class NeonFlapGame extends FlameGame {
   double _currentGap = GameConstants.pipeGap;
   int _colorIndex = 0;
   double _shakeTime = 0;
+  bool _pipeZigZag = false;
+  int _activePipeCount = 0;
   final Random _rnd = Random();
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    playerX = size.x * 0.28;
-    groundHeight = max(40, size.y * 0.08);
+    // Zoom the camera OUT so the player sees ~3 upcoming pipe sets. This only
+    // changes the view/layout; physics, speeds and spawn timing are untouched.
+    camera.viewfinder.zoom = GameConstants.viewZoom;
 
-    bg = CityBackground(worldSize: size);
-    ground = Ground(worldSize: size, height: groundHeight);
-    add(bg);
+    playerX = size.x * 0.28;
+    groundHeight = max(30, size.y * 0.06);
+
+    // The camera is zoomed out (see above), so the visible world is larger than
+    // the raw screen [size]. Draw the background/ground across the FULL visible
+    // area (size / zoom) so nothing is left blank where upcoming pipes appear.
+    _rebuildWorldDecor(size / GameConstants.viewZoom);
 
     player = Player(character: character);
-    player.position = Vector2(playerX, size.y * 0.45);
-    player.frozen = true;
-    add(player);
+    final p = player!;
+    p.position = Vector2(playerX, size.y * 0.45);
+    p.frozen = true;
+    add(p);
 
-    add(ground);
+    // ground and bg are guaranteed non-null here — set by _rebuildWorldDecor
+    // on the synchronous call above.
+    add(ground!);
 
-    // Pre-allocate pooled objects (object pooling for 60 FPS).
     for (var i = 0; i < GameConstants.maxPipePool; i++) {
       final p = PipePair();
       p.recycle();
@@ -85,23 +96,27 @@ class NeonFlapGame extends FlameGame {
       _obstaclePool.add(o);
       add(o);
     }
-
-    controller.startCountdown();
+    _loadCompleter.complete();
   }
 
-  /// Called by the UI after the countdown finishes.
-  void startPlay() {
-    player.frozen = false;
-    controller.beginPlay();
-  }
+  final Completer<void> _loadCompleter = Completer<void>();
+  Future<void> get loadFuture => _loadCompleter.future;
 
   /// Tap / input handler invoked by the UI.
   void flap() {
-    if (controller.phase != GamePhase.playing || player.dead) return;
-    player.flap();
+    final p = player;
+    if (controller.phase != GamePhase.playing || p == null || p.dead) return;
+    p.flap();
     controller.addFlap();
     sl<AudioService>().playSfx(Sfx.tap);
     sl<VibrationService>().selection();
+  }
+
+  void startPlay() {
+    final p = player;
+    if (p == null) return;
+    p.frozen = false;
+    controller.beginPlay();
   }
 
   @override
@@ -115,8 +130,10 @@ class NeonFlapGame extends FlameGame {
     _speed = difficulty.speedAt(score);
     _currentGap = difficulty.gapAt(score);
 
-    bg.advance(_speed, dt);
-    ground.advance(_speed, dt);
+    // bg and ground are non-null after onLoad() completes. The game loop only
+    // runs after onLoad(), so these are mathematically safe.
+    bg!.advance(_speed, dt);
+    ground!.advance(_speed, dt);
 
     _updatePipes(dt);
     _updateCoins(dt);
@@ -142,8 +159,10 @@ class NeonFlapGame extends FlameGame {
   }
 
   void _updatePipes(double dt) {
+    _activePipeCount = 0;
     for (final p in _pipePool) {
       if (!p.active) continue;
+      _activePipeCount++;
       p.update(dt);
       if (!p.passed && p.rightEdge < playerX) {
         p.passed = true;
@@ -154,14 +173,16 @@ class NeonFlapGame extends FlameGame {
   }
 
   void _updateCoins(double dt) {
+    final p = player;
+    if (p == null) return;
     final attractR = 24 + 70 * character.stats.coinAttraction;
     for (final c in _coinPool) {
       if (!c.active) continue;
       // Magnet: pull nearby coins toward the player.
-      final dist = (c.position - player.position).length;
+      final dist = (c.position - p.position).length;
       if (dist < attractR) {
         final f = (dt * (1 - dist / attractR) * 6).clamp(0.0, 1.0);
-        c.magnetize(player.position, f);
+        c.magnetize(p.position, f);
       } else {
         c.update(dt);
       }
@@ -203,10 +224,14 @@ class NeonFlapGame extends FlameGame {
   }
 
   void _maybeSpawn() {
-    // Spawn a new pipe when the rightmost one has cleared the spacing.
+    // Spawn a new pipe when no active pipe has crossed the spawn threshold.
+    // Uses _activePipeCount (tracked in _updatePipes) to avoid scanning the
+    // full pool — only check active pipes for the rightmost position.
+    if (_activePipeCount >= GameConstants.maxPipePool) return;
     var rightmost = -double.infinity;
     for (final p in _pipePool) {
-      if (p.active && p.position.x > rightmost) rightmost = p.position.x;
+      if (!p.active) continue;
+      if (p.position.x > rightmost) rightmost = p.position.x;
     }
     if (rightmost > size.x - GameConstants.pipeSpacing) return;
 
@@ -217,6 +242,8 @@ class NeonFlapGame extends FlameGame {
     final maxY = worldHeight - groundHeight - gap / 2 - margin;
     final centerY = minY + _rnd.nextDouble() * (maxY - minY);
     final score = controller.score;
+    final bottomOffset = _pipeZigZag ? 55.0 : 0.0;
+    _pipeZigZag = !_pipeZigZag;
 
     final pipe = _acquirePipe();
     if (pipe != null) {
@@ -227,17 +254,19 @@ class NeonFlapGame extends FlameGame {
         speed: _speed,
         worldHeight: worldHeight,
         color: color,
+        bottomOffsetX: bottomOffset,
       );
     }
 
     // Coins ride through the gap for satisfying collection lines.
     final coinCount = 1 + _rnd.nextInt(3);
+    final coinX = size.x + GameConstants.pipeWidth + 30 + bottomOffset * 0.5;
     for (var i = 0; i < coinCount; i++) {
       final coin = _acquireCoin();
       if (coin == null) break;
       coin.spawn(
         position: Vector2(
-          size.x + GameConstants.pipeWidth + 60 + i * 40,
+          coinX + i * 40,
           centerY,
         ),
         speed: _speed,
@@ -283,16 +312,18 @@ class NeonFlapGame extends FlameGame {
   }
 
   void _checkCollisions() {
-    final pc = Offset(player.position.x, player.position.y);
-    final pr = player.hitboxRadius;
+    final p = player;
+    if (p == null || p.dead) return;
+    final pc = Offset(p.position.x, p.position.y);
+    final pr = p.hitboxRadius;
 
     // Ceiling clamp.
-    if (player.position.y - pr < 0) {
-      player.position.y = pr;
-      if (player.velocityY < 0) player.velocityY = 0;
+    if (p.position.y - pr < 0) {
+      p.position.y = pr;
+      if (p.velocityY < 0) p.velocityY = 0;
     }
     // Ground = death.
-    if (player.position.y + pr >= worldHeight - groundHeight) {
+    if (p.position.y + pr >= worldHeight - groundHeight) {
       _die();
       return;
     }
@@ -311,10 +342,10 @@ class NeonFlapGame extends FlameGame {
         return;
       }
     }
-    // Coin pickups.
+    // Coin pickups — p is captured from the guard above.
     for (final c in _coinPool) {
       if (!c.active) continue;
-      final d = (c.position - player.position).length;
+      final d = (c.position - p.position).length;
       if (d < pr + c.size.x * 0.4) {
         c.recycle();
         controller.addCollectedCoins(c.value);
@@ -331,27 +362,60 @@ class NeonFlapGame extends FlameGame {
   }
 
   void _die() {
-    if (player.dead) return;
-    player.dead = true;
-    player.frozen = true;
+    final p = player;
+    if (p == null || p.dead) return;
+    p.dead = true;
+    p.frozen = true;
     sl<AudioService>().playSfx(Sfx.gameOver);
     sl<VibrationService>().heavy();
     add(GlowBurst(
-      position: player.position.clone(),
+      position: p.position.clone(),
       color: character.primary,
       count: 20,
       maxSpeed: 240,
       radius: 7,
     ));
     _shakeTime = 0.45;
+    // Credit the base earned coins immediately so they survive regardless of ad
+    // choice. The reward screen only adds the bonus multiplier portion.
+    sl<CoinService>().addCoins(controller.earnedCoins);
     sl<CoinService>().recordScore(controller.score);
     controller.end();
   }
 
   @override
   void onGameResize(Vector2 size) {
+    // Skip rebuild if dimensions are unchanged — prevents destroying and
+    // recreating the background/ground on every layout pass (e.g. during
+    // initial widget mount which can fire resize multiple times).
+    if (size.x == _canvasSize.x && size.y == _canvasSize.y) return;
+    _canvasSize.setFrom(size);
     super.onGameResize(size);
+    // Keep the zoomed-out camera on resize.
+    camera.viewfinder.zoom = GameConstants.viewZoom;
+    // Rebuild the decor so it always covers the full visible world width.
+    _rebuildWorldDecor(size / GameConstants.viewZoom);
     // Keep player horizontally anchored on resize.
     if (playerX > 0) playerX = size.x * 0.28;
+  }
+
+  /// (Re)creates the background and ground at [viewSize] so they always span
+  /// the full zoomed-out visible area, even after an orientation/resize change.
+  void _rebuildWorldDecor(Vector2 viewSize) {
+    // The null check + immediate null + reassign + use pattern below is safe
+    // because there is no async gap or re-entrancy in this synchronous method.
+    if (bg != null) {
+      bg!.removeFromParent();
+      bg = null;
+    }
+    if (ground != null) {
+      ground!.removeFromParent();
+      ground = null;
+    }
+    bg = CityBackground(worldSize: viewSize);
+    ground = Ground(worldSize: viewSize, height: groundHeight);
+    // bg and ground were just assigned on the lines above — guaranteed non-null.
+    add(bg!);
+    add(ground!);
   }
 }

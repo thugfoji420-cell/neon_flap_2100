@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 
-import 'package:neon_flap_2100/core/utils/neon_paint.dart';
+import 'package:neon_flap1_game/core/utils/neon_paint.dart';
 
 class _Spark {
   _Spark(this.angle, this.speed);

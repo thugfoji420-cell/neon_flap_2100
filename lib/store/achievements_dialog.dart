@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'package:neon_flap_2100/core/di/service_locator.dart';
-import 'package:neon_flap_2100/core/theme/app_theme.dart';
-import 'package:neon_flap_2100/services/achievement_service.dart';
-import 'package:neon_flap_2100/store/characters_data.dart';
-import 'package:neon_flap_2100/widgets/neon_button.dart';
+import 'dart:math';
+
+import 'package:neon_flap1_game/core/di/service_locator.dart';
+import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/services/achievement_service.dart';
+import 'package:neon_flap1_game/store/characters_data.dart';
+import 'package:neon_flap1_game/widgets/neon_button.dart';
+import 'package:neon_flap1_game/widgets/neon_panel.dart';
 
 Future<void> showAchievementsDialog(BuildContext context) {
   return showDialog(
@@ -26,21 +29,8 @@ class _AchievementsDialog extends StatelessWidget {
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 520),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: NeonPalette.backgroundDark,
-          border: Border.all(color: NeonPalette.cyan.withOpacity(0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: NeonPalette.cyan.withOpacity(0.25),
-              blurRadius: 28,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
+      child: NeonPanel(
+        maxWidth: 520,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,17 +51,19 @@ class _AchievementsDialog extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'GAMES PLAYED: ${stats.gamesPlayed}',
-              style: NeonTextStyle.label.copyWith(color: NeonPalette.cyan),
+              style: NeonTextStyle.label
+                  .copyWith(color: Theme.of(context).colorScheme.primary),
             ),
             const SizedBox(height: 4),
             Text(
               'TOTAL FLAPS: ${stats.totalFlaps}  ·  TOTAL SCORE: ${stats.totalScoreAll}',
-              style: NeonTextStyle.label.copyWith(color: NeonPalette.cyan),
+              style: NeonTextStyle.label
+                  .copyWith(color: Theme.of(context).colorScheme.primary),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              height: 360,
+              height: min(360, MediaQuery.of(context).size.height * 0.55),
               child: SingleChildScrollView(
                 child: Column(
                   children: AchievementDefinition.all.map((def) {
@@ -117,14 +109,18 @@ class _AchievementTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = claimed ? NeonPalette.green : NeonPalette.white;
+    final themeColors = NeonTheme.colors(context);
+    final color =
+        claimed ? NeonPalette.green : Theme.of(context).colorScheme.onSurface;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.5)),
-        color: (claimed ? NeonPalette.green : NeonPalette.backgroundDark)
-            .withOpacity(0.55),
+        color: (claimed
+                ? Theme.of(context).colorScheme.primaryContainer
+                : themeColors.panel)
+            .withOpacity(claimed ? 0.55 : 0.55),
       ),
       child: Row(
         children: [
@@ -144,7 +140,7 @@ class _AchievementTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   child: LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: NeonPalette.backgroundDeep,
+                    backgroundColor: themeColors.field,
                     valueColor: AlwaysStoppedAnimation<Color>(color),
                     minHeight: 5,
                   ),
@@ -153,10 +149,9 @@ class _AchievementTile extends StatelessWidget {
                 Text(
                   claimed
                       ? 'CLAIMED'
-                      : '$current / ${achievement.target}'
-                          '${achievement.rewardCoins > 0 ? "  ·  ${achievement.rewardCoins} ◉" : ""}'
-                          '${achievement.characterUnlockId != null ? "  ·  Unlock: ${CharactersData.byId(achievement.characterUnlockId!).name}" : ""}',
-                  style: NeonTextStyle.label.copyWith(fontSize: 10, color: color),
+                      : _achievementSubtitle(achievement, current),
+                  style:
+                      NeonTextStyle.label.copyWith(fontSize: 10, color: color),
                 ),
               ],
             ),
@@ -164,5 +159,12 @@ class _AchievementTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _achievementSubtitle(Achievement a, int current) {
+    final unlockId = a.characterUnlockId;
+    return '$current / ${a.target}'
+        '${a.rewardCoins > 0 ? "  ·  ${a.rewardCoins} ◉" : ""}'
+        '${unlockId != null ? "  ·  Unlock: ${CharactersData.byId(unlockId).name}" : ""}';
   }
 }

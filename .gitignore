@@ -43,3 +43,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Keystore files (secrets — set NEON_FLAP_STORE_PASSWORD / NEON_FLAP_KEY_PASSWORD env vars)
+*.jks
+*.keystore
+/local.properties
+
+# Firebase / Google services config (contains API keys — do not commit)
+/android/app/google-services.json
+/lib/firebase_options.dart
+/firebase-debug.log
+
+# Build artifacts & logs
+build_output.txt
+buildlog.txt
+deps.txt
+verbose.txt
+.firebase/
