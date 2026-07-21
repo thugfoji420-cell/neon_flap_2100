@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:neon_flap1_game/core/constants/app_constants.dart';
 import 'package:neon_flap1_game/core/theme/app_theme.dart';
+import 'package:neon_flap1_game/services/audio_service.dart';
 import 'package:neon_flap1_game/widgets/animated_background.dart';
+import 'package:neon_flap1_game/widgets/holo_panel.dart';
 import 'package:neon_flap1_game/widgets/neon_button.dart';
 
 /// Credits / about screen. Shows game info and audio attributions.
@@ -27,10 +30,49 @@ class CreditsScreen extends StatelessWidget {
                   style: NeonTextStyle.title.copyWith(fontSize: 28),
                 ),
                 Text(
-                  'v1.0.0',
+                  'Developed by Nexora Studios',
                   style: NeonTextStyle.label.copyWith(
                     color: scheme.primary,
                   ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'v${AppConstants.appVersion}',
+                  style: NeonTextStyle.label.copyWith(fontSize: 12),
+                ),
+                const SizedBox(height: 32),
+                const Text('PRODUCTION', style: NeonTextStyle.heading),
+                const SizedBox(height: 16),
+                const _CreditTile(
+                  title: 'Game Design',
+                  track: 'Neon Flap 2100',
+                  artist: 'Nexora Studios',
+                  credit:
+                      'Arcade difficulty, character progression, rewards, and cyberpunk game feel.',
+                ),
+                const SizedBox(height: 12),
+                const _CreditTile(
+                  title: 'Programming',
+                  track: 'Flutter + Flame implementation',
+                  artist: 'Nexora Studios',
+                  credit:
+                      'Gameplay systems, Firebase integration, offline guest mode, UI, storage, ads, and services.',
+                ),
+                const SizedBox(height: 12),
+                const _CreditTile(
+                  title: 'UI / UX',
+                  track: 'Neon Material 3 interface',
+                  artist: 'Nexora Studios',
+                  credit:
+                      'Embossed glass panels, responsive menus, dialogs, settings, shop, and profile flow.',
+                ),
+                const SizedBox(height: 12),
+                const _CreditTile(
+                  title: 'Character and Visual Design',
+                  track: 'Futuristic neon bird sprite sheets',
+                  artist: 'Nexora Studios',
+                  credit:
+                      'Detailed transparent bird sprites, city background, pipes, coins, particles, and neon effects.',
                 ),
                 const SizedBox(height: 32),
                 const Text(
@@ -38,24 +80,23 @@ class CreditsScreen extends StatelessWidget {
                   style: NeonTextStyle.heading,
                 ),
                 const SizedBox(height: 16),
-                _CreditTile(
-                  title: 'Menu BGM',
-                  track: 'Better Times are Coming',
-                  artist: 'Alejandro Magaña (A. M.)',
-                  credit:
-                      'Better Times are Coming by Alejandro Magaña (A. M.)\n'
-                      'Licensed under Mixkit Free License\n'
-                      'https://mixkit.co/free-stock-music/mood/futuristic/',
+                const Text(
+                  'Bundled original OGG downloads. Each track is licensed CC0 1.0; '
+                  'credits are included voluntarily and work offline.',
+                  textAlign: TextAlign.center,
+                  style: NeonTextStyle.body,
                 ),
-                const SizedBox(height: 12),
-                _CreditTile(
-                  title: 'Gameplay BGM',
-                  track: 'Infected Vibes',
-                  artist: 'Alejandro Magaña (A. M.)',
-                  credit: 'Infected Vibes by Alejandro Magaña (A. M.)\n'
-                      'Licensed under Mixkit Free License\n'
-                      'https://mixkit.co/free-stock-music/mood/energetic/',
-                ),
+                const SizedBox(height: 16),
+                for (final track
+                    in MusicTrack.byCategory(MusicCategory.menu)) ...[
+                  _MusicCreditTile(track: track, category: 'MENU MUSIC'),
+                  const SizedBox(height: 12),
+                ],
+                for (final track
+                    in MusicTrack.byCategory(MusicCategory.gameplay)) ...[
+                  _MusicCreditTile(track: track, category: 'GAMEPLAY MUSIC'),
+                  const SizedBox(height: 12),
+                ],
                 const SizedBox(height: 12),
                 _CreditTile(
                   title: 'Sound Effects',
@@ -103,7 +144,8 @@ class CreditsScreen extends StatelessWidget {
                   title: 'State Management',
                   track: 'ChangeNotifier + AnimatedBuilder',
                   artist: 'Flutter SDK',
-                  credit: 'https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html',
+                  credit:
+                      'https://api.flutter.dev/flutter/widgets/AnimatedBuilder-class.html',
                 ),
                 const SizedBox(height: 12),
                 _CreditTile(
@@ -120,7 +162,47 @@ class CreditsScreen extends StatelessWidget {
                   credit: 'https://pub.dev/packages/google_mobile_ads\n'
                       'https://pub.dev/packages/in_app_purchase',
                 ),
+                const SizedBox(height: 12),
+                const _CreditTile(
+                  title: 'Backend Services',
+                  track: 'Firebase Authentication + Cloud Firestore',
+                  artist: 'Google Firebase',
+                  credit:
+                      'Google Sign-In, username registration, cloud save, inventory sync, achievements, daily rewards, and leaderboards.',
+                ),
+                const SizedBox(height: 12),
+                const _CreditTile(
+                  title: 'Authentication',
+                  track: 'Google Sign-In',
+                  artist: 'Google',
+                  credit: 'Used for account login and cloud synchronization.',
+                ),
+                const SizedBox(height: 12),
+                const _CreditTile(
+                  title: 'Special Thanks',
+                  track: 'Players and testers',
+                  artist: 'Neon Flap 2100 community',
+                  credit:
+                      'Thanks for flying the neon grid and reporting rough edges.',
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '© 2026 Nexora Studios. All rights reserved.',
+                  textAlign: TextAlign.center,
+                  style: NeonTextStyle.body.copyWith(fontSize: 12),
+                ),
                 const SizedBox(height: 32),
+                NeonButton(
+                  label: 'OPEN SOURCE LICENSES',
+                  icon: Icons.article_outlined,
+                  color: NeonPalette.cyan,
+                  onPressed: () => showLicensePage(
+                    context: context,
+                    applicationName: AppConstants.appName,
+                    applicationVersion: AppConstants.appVersion,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 NeonButton(
                   label: 'BACK',
                   color: scheme.primary,
@@ -134,6 +216,27 @@ class CreditsScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _MusicCreditTile extends StatelessWidget {
+  const _MusicCreditTile({required this.track, required this.category});
+
+  final MusicTrack track;
+  final String category;
+
+  @override
+  Widget build(BuildContext context) => _CreditTile(
+        title: category,
+        track: track.title,
+        artist: track.artist,
+        credit: '${MusicTrack.licenseName} • Original OGG retained\n'
+            'Source: ${track.sourceUrl}\n'
+            'Source category: ${track.sourceCategory}\n'
+            'Source file: ${track.originalFilename}\n'
+            'Bundled: ${track.asset}\n'
+            'Downloaded: ${MusicTrack.downloadedOn}\n'
+            '${MusicTrack.conversionDetails}',
+      );
 }
 
 class _CreditTile extends StatelessWidget {
@@ -152,29 +255,26 @@ class _CreditTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final themeColors = NeonTheme.colors(context);
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.primary.withOpacity(0.4)),
-        color: themeColors.panel.withOpacity(0.9),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: NeonTextStyle.label.copyWith(fontSize: 12)),
-          const SizedBox(height: 6),
-          Text(track, style: NeonTextStyle.heading.copyWith(fontSize: 18)),
-          const SizedBox(height: 2),
-          Text(artist, style: NeonTextStyle.label.copyWith(fontSize: 14)),
-          const SizedBox(height: 10),
-          Text(
-            credit,
-            style: NeonTextStyle.body.copyWith(fontSize: 12),
-          ),
-        ],
+      child: HoloPanel(
+        color: scheme.primary,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: NeonTextStyle.label.copyWith(fontSize: 12)),
+            const SizedBox(height: 6),
+            Text(track, style: NeonTextStyle.heading.copyWith(fontSize: 18)),
+            const SizedBox(height: 2),
+            Text(artist, style: NeonTextStyle.label.copyWith(fontSize: 14)),
+            const SizedBox(height: 10),
+            Text(
+              credit,
+              style: NeonTextStyle.body.copyWith(fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }

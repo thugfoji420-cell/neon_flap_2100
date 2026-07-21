@@ -30,7 +30,8 @@ class InterstitialAdService {
 
   Future<void> load() async {
     if (_ad != null) return;
-    _analytics.log(AdEventType.interstitialLoaded, {'attempt': _retryCount + 1});
+    _analytics
+        .log(AdEventType.interstitialLoaded, {'attempt': _retryCount + 1});
 
     final unitId = AdConstants.interstitialAdUnitId;
     InterstitialAd.load(
@@ -91,14 +92,14 @@ class InterstitialAdService {
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (_) =>
           _analytics.log(AdEventType.interstitialShown),
-      onAdClicked: (_) =>
-          _analytics.log(AdEventType.interstitialClicked),
+      onAdClicked: (_) => _analytics.log(AdEventType.interstitialClicked),
       onAdDismissedFullScreenContent: (_) {
         _analytics.log(AdEventType.interstitialDismissed);
         ad.dispose();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
-        _analytics.log(AdEventType.interstitialFailed, {'error': error.message});
+        _analytics
+            .log(AdEventType.interstitialFailed, {'error': error.message});
         ad.dispose();
       },
     );

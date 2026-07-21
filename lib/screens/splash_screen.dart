@@ -5,10 +5,12 @@ import 'package:neon_flap1_game/core/theme/app_theme.dart';
 import 'package:neon_flap1_game/firebase/auth_service.dart';
 import 'package:neon_flap1_game/firebase/firebase_service.dart';
 import 'package:neon_flap1_game/routing/route_transitions.dart';
+import 'package:neon_flap1_game/screens/choose_player_name_screen.dart';
 import 'package:neon_flap1_game/screens/google_sign_in_screen.dart';
 import 'package:neon_flap1_game/screens/main_menu_screen.dart';
 import 'package:neon_flap1_game/services/ad_service.dart';
 import 'package:neon_flap1_game/services/coin_service.dart';
+import 'package:neon_flap1_game/services/coin_sync_service.dart';
 import 'package:neon_flap1_game/services/owned_characters_service.dart';
 import 'package:neon_flap1_game/widgets/animated_background.dart';
 
@@ -43,6 +45,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final authService = sl<AuthService>();
+    final firebase = sl<FirebaseService>();
 
     // Automatic login: a persisted, non-anonymous user exists from a previous
     // Google sign-in. Restore the session and the cloud profile silently and go
@@ -53,6 +56,21 @@ class _SplashScreenState extends State<SplashScreen> {
         await _loadProfileAndEnterMainMenu();
         return;
       }
+    }
+
+    if (firebase.isOfflineGuest) {
+      await firebase.activateOfflineProfile();
+      _navigate(const MainMenuScreen());
+      return;
+    }
+
+    if (firebase.hasActiveIncompleteOfflineProfile) {
+      final navigator = Navigator.of(context);
+      _navigate(ChoosePlayerNameScreen(
+        onComplete: () =>
+            navigator.pushReplacement(fadeRoute(const MainMenuScreen())),
+      ));
+      return;
     }
 
     // No valid persisted session: show the Login Screen. The App Open Ad may be
@@ -105,6 +123,10 @@ class _SplashScreenState extends State<SplashScreen> {
       avatarId: owned.selectedId,
     );
     await firebase.applyBootstrap(result, coins);
+    sl<CoinSyncService>().attach();
+    if (firebase.hasPendingGuestMigration) {
+      await firebase.mergeOfflineProgress();
+    }
     if (!mounted) return;
     _navigate(const MainMenuScreen());
   }

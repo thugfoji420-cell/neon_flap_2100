@@ -159,56 +159,77 @@ class _RewardDialogState extends State<_RewardDialog> {
   Widget build(BuildContext context) {
     final earned = widget.earnedCoins;
     final scheme = Theme.of(context).colorScheme;
+    final maxContentHeight =
+        (MediaQuery.sizeOf(context).height - 96).clamp(280.0, 680.0).toDouble();
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       backgroundColor: Colors.transparent,
       child: NeonPanel(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('GAME OVER', style: NeonTextStyle.title),
-            const SizedBox(height: 18),
-            Text('YOU EARNED', style: NeonTextStyle.label),
-            const SizedBox(height: 6),
-            Text('$earned',
-                style: NeonTextStyle.title.copyWith(
-                  color: NeonPalette.yellow,
-                  fontSize: 56,
-                )),
-            Text('COINS', style: NeonTextStyle.label),
-            const SizedBox(height: 28),
-            const Text('CHOOSE REWARD', style: NeonTextStyle.heading),
-            const SizedBox(height: 16),
-            NeonButton(
-              label: '1 AD  ·  2X COINS',
-              color: NeonPalette.green,
-              enabled: !_processing,
-              onPressed: _watchOne,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxContentHeight),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('GAME OVER', style: NeonTextStyle.title),
+                ),
+                const SizedBox(height: 18),
+                Text('YOU EARNED', style: NeonTextStyle.label),
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '$earned',
+                    style: NeonTextStyle.title.copyWith(
+                      color: NeonPalette.yellow,
+                      fontSize: 56,
+                    ),
+                  ),
+                ),
+                Text('COINS', style: NeonTextStyle.label),
+                const SizedBox(height: 28),
+                const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('CHOOSE REWARD', style: NeonTextStyle.heading),
+                ),
+                const SizedBox(height: 16),
+                NeonButton(
+                  label: '1 AD  ·  2X COINS',
+                  icon: Icons.ondemand_video_rounded,
+                  color: NeonPalette.green,
+                  enabled: !_processing,
+                  onPressed: _watchOne,
+                ),
+                const SizedBox(height: 12),
+                NeonButton(
+                  label: _processing && _adsWatched > 0
+                      ? '3 ADS  ·  ${_adsWatched}/3'
+                      : '3 ADS  ·  5X COINS',
+                  icon: Icons.ondemand_video_rounded,
+                  color: scheme.primary,
+                  enabled: !_processing,
+                  onPressed: _watchThree,
+                ),
+                const SizedBox(height: 12),
+                NeonButton(
+                  label: 'CLOSE  ·  KEEP $earned',
+                  icon: Icons.close_rounded,
+                  color: NeonPalette.red,
+                  enabled: !_processing,
+                  onPressed: () => _finish(1),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Skip = no bonus. Rewards only after the ad is earned.',
+                  style: NeonTextStyle.body,
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            NeonButton(
-              label: _processing && _adsWatched > 0
-                  ? '3 ADS  ·  ${_adsWatched}/3'
-                  : '3 ADS  ·  5X COINS',
-              color: scheme.primary,
-              enabled: !_processing,
-              onPressed: _watchThree,
-            ),
-            const SizedBox(height: 12),
-            NeonButton(
-              label: 'CLOSE  ·  KEEP $earned',
-              color: NeonPalette.red,
-              enabled: !_processing,
-              onPressed: () => _finish(1),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Skip = no bonus. Rewards only after the ad is earned.',
-              style: NeonTextStyle.body,
-              textAlign: TextAlign.center,
-            ),
-          ],
+          ),
         ),
       ),
     );

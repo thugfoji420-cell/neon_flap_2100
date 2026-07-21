@@ -39,8 +39,8 @@ class GameConstants {
   /// Maximum number of coins/obstacles reused from the pool. */
   static const int maxObjectPool = 24;
 
-  /// Camera viewfinder zoom. Values below 1 zoom the camera OUT, increasing the
-  /// visible world area so the player can see roughly two upcoming pipe gaps
+  /// Camera viewfinder zoom. Reducing the previous 0.55 value to 0.48 expands
+  /// the visible world by 14.6%, giving the player roughly two upcoming gaps
   /// without changing physics, speed, player size or spawn timing.
-  static const double viewZoom = 0.55;
+  static const double viewZoom = 0.48;
 }

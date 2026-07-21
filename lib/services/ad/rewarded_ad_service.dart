@@ -31,7 +31,8 @@ class RewardedAdService {
 
   Future<void> load(String unitId) async {
     if (_loadedUnitId == unitId && _ad != null) return;
-    _analytics.log(AdEventType.rewardedLoaded, {'unit': unitId, 'attempt': _retryCount + 1});
+    _analytics.log(AdEventType.rewardedLoaded,
+        {'unit': unitId, 'attempt': _retryCount + 1});
 
     final currentUnit = _loadedUnitId;
     if (currentUnit != null && currentUnit != unitId) {
@@ -100,7 +101,8 @@ class RewardedAdService {
         if (!completer.isCompleted) completer.complete(false);
       },
       onAdFailedToShowFullScreenContent: (_, error) {
-        _analytics.log(AdEventType.rewardedFailed, {'unit': unitId, 'error': error.message});
+        _analytics.log(AdEventType.rewardedFailed,
+            {'unit': unitId, 'error': error.message});
         ad.dispose();
         if (!completer.isCompleted) completer.complete(false);
       },

@@ -70,8 +70,7 @@ class CityBackground extends Component {
     final h = worldSize.y;
 
     // Sky gradient — the shader is recreated on resize but cached per call.
-    canvas.drawRect(
-        Rect.fromLTWH(0, 0, w, h), _skyGradient(w, h));
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), _skyGradient(w, h));
 
     // Stars — paint cached at top of file.
     for (final s in _stars) {
@@ -103,7 +102,8 @@ class CityBackground extends Component {
     return Paint()..shader = _skyGradientCache[key];
   }
 
-  void _drawLayer(Canvas canvas, List<_Building> layer, double scroll, double alpha) {
+  void _drawLayer(
+      Canvas canvas, List<_Building> layer, double scroll, double alpha) {
     if (layer.isEmpty) return;
     final w = worldSize.x;
     final h = worldSize.y;
@@ -171,7 +171,8 @@ class Ground extends Component {
     // Base bar — neonFill is reused, no allocation.
     canvas.drawRect(Rect.fromLTWH(0, top, w, height),
         neonFill(color, glow: 18, alpha: 0.18));
-    canvas.drawLine(Offset(0, top), Offset(w, top), neonGlowStroke(color, 5, glow: 16));
+    canvas.drawLine(
+        Offset(0, top), Offset(w, top), neonGlowStroke(color, 5, glow: 16));
     canvas.drawLine(Offset(0, top), Offset(w, top), neonStroke(color, 3));
 
     // Moving energy ticks — paints cached across calls.

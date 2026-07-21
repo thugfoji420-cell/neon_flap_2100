@@ -76,4 +76,12 @@ class CoinService extends ChangeNotifier {
     await _storage.setInt(StorageKeys.bestScore, _bestScore);
     notifyListeners();
   }
+
+  /// Clears in-memory values after account-session cleanup has removed the
+  /// persisted values. This keeps an old balance out of the next account.
+  void reset() {
+    _coins = 0;
+    _bestScore = 0;
+    notifyListeners();
+  }
 }

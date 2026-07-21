@@ -11,6 +11,7 @@ import 'package:neon_flap1_game/services/ad_service.dart';
 import 'package:neon_flap1_game/services/audio_service.dart';
 import 'package:neon_flap1_game/services/coin_service.dart';
 import 'package:neon_flap1_game/services/owned_characters_service.dart';
+import 'package:neon_flap1_game/services/settings_service.dart';
 import 'package:neon_flap1_game/services/storage_service.dart';
 import 'package:neon_flap1_game/firebase/firebase_service.dart';
 import 'package:neon_flap1_game/widgets/animated_background.dart';
@@ -31,7 +32,7 @@ class _GameOverScreenState extends State<GameOverScreen> {
   @override
   void initState() {
     super.initState();
-    sl<AudioService>().playMusic(MusicTrack.menu);
+    sl<AudioService>().playMusic(sl<SettingsService>().menuTrack);
     _evaluateAchievements();
   }
 

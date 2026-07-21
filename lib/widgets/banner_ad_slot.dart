@@ -35,10 +35,14 @@ class _BannerAdSlotState extends State<BannerAdSlot> {
       listener: BannerAdListener(
         onAdLoaded: (ad) {
           _retryCount = 0;
-          if (mounted) setState(() {});
+          if (mounted) {
+            setState(() {});
+          }
         },
         onAdFailedToLoad: (ad, error) {
-          if (kDebugMode) debugPrint('BannerAdSlot: load failed: ${error.message}');
+          if (kDebugMode) {
+            debugPrint('BannerAdSlot: load failed: ${error.message}');
+          }
           ad.dispose();
           _bannerAd = null;
           _scheduleRetry();

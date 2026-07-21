@@ -64,8 +64,8 @@ class Obstacle extends PositionComponent {
     _t += dt;
     position.x -= _horizSpeed * dt;
     if (kind == ObstacleKind.drifting) {
-      position.y = (_baseY + sin(_t * 2.2) * _amp)
-          .clamp(size.y, worldHeight - size.y);
+      position.y =
+          (_baseY + sin(_t * 2.2) * _amp).clamp(size.y, worldHeight - size.y);
     } else {
       // Hazard weaves slightly for a threatening feel.
       position.y = (_baseY + sin(_t * 5.0) * (_amp * 0.4))

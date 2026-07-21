@@ -1,7 +1,10 @@
+import 'dart:ui';
+
 import 'package:neon_flap1_game/core/theme/app_theme.dart';
 import 'package:neon_flap1_game/models/character.dart';
 
-/// The 24-character roster for the premium Character Store.
+/// The complete historical character catalog. Hidden entries remain here so
+/// old local/cloud inventories and achievement references can be read safely.
 ///
 /// Character #1 is free. Prices and stats escalate together: more expensive
 /// characters float better, have tighter (more forgiving) hitboxes, more
@@ -10,7 +13,7 @@ import 'package:neon_flap1_game/models/character.dart';
 class CharactersData {
   const CharactersData._();
 
-  static const List<Character> roster = [
+  static const List<Character> allRoster = [
     Character(
       id: 'nova',
       name: 'Nova',
@@ -20,67 +23,150 @@ class CharactersData {
       accent: NeonPalette.white,
       stats: CharacterStats(),
       description: 'Standard issue courier bird. Balanced flight profile.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.20,
+        flapCycleDuration: 0.50,
+        glowRadius: 0.14,
+        glowOpacity: 0.30,
+        innerGlowOpacity: 0.14,
+        tapGlowBoost: 0.14,
+      ),
     ),
     Character(
       id: 'pulse',
       name: 'Pulse',
-      price: 800,
+      price: 1200,
       isFree: false,
       primary: NeonPalette.magenta,
       accent: NeonPalette.cyan,
       stats: CharacterStats(coinAttraction: 1.3),
       description: 'Magnetised plumage pulls in coins from afar.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.16,
+        flapCycleDuration: 0.48,
+        glowRadius: 0.14,
+        glowOpacity: 0.34,
+        innerGlowOpacity: 0.16,
+        tapGlowBoost: 0.16,
+      ),
     ),
     Character(
       id: 'volt',
       name: 'Volt',
-      price: 1000,
+      price: 1400,
       isFree: false,
       primary: NeonPalette.yellow,
       accent: NeonPalette.red,
       stats: CharacterStats(jumpPrecision: 1.15),
       description: 'Precision wings for crisp aerial taps.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.16,
+        flapCycleDuration: 0.52,
+        glowRadius: 0.15,
+        glowOpacity: 0.34,
+        innerGlowOpacity: 0.16,
+        tapGlowBoost: 0.15,
+      ),
     ),
     Character(
       id: 'glitch',
       name: 'Glitch',
-      price: 1300,
+      price: 1700,
       isFree: false,
       primary: NeonPalette.green,
       accent: NeonPalette.purple,
       stats: CharacterStats(control: 1.2),
       description: 'Responsive feathers, snappy mid-air control.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.18,
+        flapCycleDuration: 0.49,
+        glowRadius: 0.14,
+        glowOpacity: 0.35,
+        innerGlowOpacity: 0.16,
+        tapGlowBoost: 0.17,
+      ),
     ),
     Character(
       id: 'spectre',
       name: 'Spectre',
-      price: 1700,
+      price: 2100,
       isFree: false,
       primary: NeonPalette.purple,
       accent: NeonPalette.cyan,
       stats: CharacterStats(gravityScale: 0.94, hitboxScale: 0.95),
       description: 'Phase-shifted frame: lighter gravity, tighter form.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.12,
+        flapCycleDuration: 0.56,
+        glowRadius: 0.15,
+        glowOpacity: 0.32,
+        innerGlowOpacity: 0.15,
+        tapGlowBoost: 0.14,
+      ),
     ),
     Character(
       id: 'quasar',
       name: 'Quasar',
-      price: 2200,
+      price: 2600,
       isFree: false,
       primary: NeonPalette.cyan,
       accent: NeonPalette.magenta,
-      stats: CharacterStats(
-          coinAttraction: 1.4, jumpPrecision: 1.1),
+      stats: CharacterStats(coinAttraction: 1.4, jumpPrecision: 1.1),
       description: 'Long-range coin tractor and steady flight.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.13,
+        flapCycleDuration: 0.54,
+        glowRadius: 0.15,
+        glowOpacity: 0.36,
+        innerGlowOpacity: 0.18,
+        tapGlowBoost: 0.16,
+      ),
     ),
     Character(
       id: 'ember',
       name: 'Ember',
-      price: 2800,
+      price: 3200,
       isFree: false,
       primary: NeonPalette.red,
       accent: NeonPalette.yellow,
       stats: CharacterStats(control: 1.25, jumpPrecision: 1.1),
       description: 'Combustion wings tuned for agile manoeuvres.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.12,
+        flapCycleDuration: 0.58,
+        glowRadius: 0.16,
+        glowOpacity: 0.38,
+        innerGlowOpacity: 0.20,
+        tapGlowBoost: 0.18,
+      ),
     ),
     Character(
       id: 'cyber',
@@ -91,6 +177,10 @@ class CharactersData {
       accent: NeonPalette.cyan,
       stats: CharacterStats(gravityScale: 0.92, hitboxScale: 0.92),
       description: 'Reinforced feathers shrink the danger zone.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'phantom',
@@ -99,9 +189,12 @@ class CharactersData {
       isFree: false,
       primary: NeonPalette.purple,
       accent: NeonPalette.magenta,
-      stats: CharacterStats(
-          control: 1.3, coinAttraction: 1.45),
+      stats: CharacterStats(control: 1.3, coinAttraction: 1.45),
       description: 'Ghost protocol: supreme handling and magnetism.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'aurora',
@@ -110,9 +203,12 @@ class CharactersData {
       isFree: false,
       primary: NeonPalette.cyan,
       accent: NeonPalette.green,
-      stats: CharacterStats(
-          gravityScale: 0.9, jumpPrecision: 1.2),
+      stats: CharacterStats(gravityScale: 0.9, jumpPrecision: 1.2),
       description: 'Ion lift wings deliver a floaty, precise glide.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'nebula',
@@ -121,20 +217,34 @@ class CharactersData {
       isFree: false,
       primary: NeonPalette.magenta,
       accent: NeonPalette.purple,
-      stats: CharacterStats(
-          hitboxScale: 0.88, coinAttraction: 1.5),
+      stats: CharacterStats(hitboxScale: 0.88, coinAttraction: 1.5),
       description: 'Micro-frame with a powerful coin vortex.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'titan',
       name: 'Titan',
-      price: 9000,
+      price: 9400,
       isFree: false,
       primary: NeonPalette.yellow,
       accent: NeonPalette.white,
-      stats: CharacterStats(
-          gravityScale: 0.89, control: 1.3),
+      stats: CharacterStats(gravityScale: 0.89, control: 1.3),
       description: 'Heavy plumage, surprisingly nimble thrust.',
+      menuScale: 1.05,
+      menuOffset: Offset(0, 2),
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.08,
+        flapCycleDuration: 0.60,
+        glowRadius: 0.16,
+        glowOpacity: 0.38,
+        innerGlowOpacity: 0.20,
+        tapGlowBoost: 0.18,
+      ),
     ),
     Character(
       id: 'zenith',
@@ -144,10 +254,12 @@ class CharactersData {
       primary: NeonPalette.cyan,
       accent: NeonPalette.yellow,
       stats: CharacterStats(
-          jumpPrecision: 1.25,
-          hitboxScale: 0.86,
-          coinAttraction: 1.55),
+          jumpPrecision: 1.25, hitboxScale: 0.86, coinAttraction: 1.55),
       description: 'Peak courier tech: precise, compact, magnetic.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'singularity',
@@ -156,11 +268,13 @@ class CharactersData {
       isFree: false,
       primary: NeonPalette.purple,
       accent: NeonPalette.cyan,
-      stats: CharacterStats(
-          gravityScale: 0.87,
-          control: 1.35,
-          hitboxScale: 0.85),
+      stats:
+          CharacterStats(gravityScale: 0.87, control: 1.35, hitboxScale: 0.85),
       description: 'Collapsed-core frame bending gravity to your will.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'cosmos',
@@ -171,6 +285,10 @@ class CharactersData {
       accent: NeonPalette.green,
       stats: CharacterStats(gravityScale: 0.86, control: 1.32),
       description: 'Null-gravity frame with reactive thrusters.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'eclipse',
@@ -181,6 +299,10 @@ class CharactersData {
       accent: NeonPalette.purple,
       stats: CharacterStats(gravityScale: 0.85, hitboxScale: 0.84),
       description: 'Shadow-forged hull nearly vanishes on impact.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'nova_prime',
@@ -191,6 +313,10 @@ class CharactersData {
       accent: NeonPalette.red,
       stats: CharacterStats(control: 1.38, jumpPrecision: 1.28),
       description: 'Upgraded flight computer. Pin-point responses.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'infinity',
@@ -201,6 +327,10 @@ class CharactersData {
       accent: NeonPalette.yellow,
       stats: CharacterStats(coinAttraction: 1.65, jumpPrecision: 1.28),
       description: 'Endless magnetic field and unrivaled precision.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'omega_plus',
@@ -216,6 +346,10 @@ class CharactersData {
           hitboxScale: 0.81,
           coinAttraction: 1.65),
       description: 'Beyond apex. Every stat maxed.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'myth',
@@ -226,6 +360,10 @@ class CharactersData {
       accent: NeonPalette.yellow,
       stats: CharacterStats(coinAttraction: 1.7),
       description: 'Aura of legend pulls coins from off-screen.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'legend',
@@ -236,6 +374,10 @@ class CharactersData {
       accent: NeonPalette.red,
       stats: CharacterStats(control: 1.45, gravityScale: 0.84),
       description: 'Legendary handling with weightless drift.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'apex',
@@ -246,21 +388,37 @@ class CharactersData {
       accent: NeonPalette.magenta,
       stats: CharacterStats(jumpPrecision: 1.35, hitboxScale: 0.80),
       description: 'Sharpest edges, deadliest aim.',
+      menuScale: 1.0,
+      menuOffset: Offset.zero,
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
     ),
     Character(
       id: 'genesis',
       name: 'Genesis',
-      price: 160000,
+      price: 160400,
       isFree: false,
       primary: NeonPalette.purple,
       accent: NeonPalette.white,
       stats: CharacterStats(gravityScale: 0.83, coinAttraction: 1.75),
       description: 'Birth of a new era. Near-zero gravity.',
+      menuScale: 1.08,
+      menuOffset: Offset(0, 3),
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.10,
+        flapCycleDuration: 0.58,
+        glowRadius: 0.17,
+        glowOpacity: 0.42,
+        innerGlowOpacity: 0.22,
+        tapGlowBoost: 0.20,
+      ),
     ),
     Character(
       id: 'universe',
       name: 'Universe',
-      price: 220000,
+      price: 220400,
       isFree: false,
       primary: NeonPalette.yellow,
       accent: NeonPalette.green,
@@ -270,9 +428,79 @@ class CharactersData {
           hitboxScale: 0.79,
           coinAttraction: 1.8),
       description: 'The final bird. Master of all dimensions.',
+      menuScale: 1.1,
+      menuOffset: Offset(0, 4),
+      shopScale: 1.0,
+      shopOffset: Offset.zero,
+      gameplayVisual: CharacterGameplayVisual(
+        scale: 1.10,
+        flapCycleDuration: 0.56,
+        glowRadius: 0.17,
+        glowOpacity: 0.44,
+        innerGlowOpacity: 0.23,
+        tapGlowBoost: 0.20,
+      ),
     ),
   ];
 
-  static Character byId(String id) =>
-      roster.firstWhere((c) => c.id == id, orElse: () => roster.first);
+  /// Exactly ten characters are active in the shop and gameplay picker. IDs
+  /// stay stable so existing purchases and selected-character saves survive.
+  static const List<String> activeIds = [
+    'nova',
+    'pulse',
+    'volt',
+    'glitch',
+    'spectre',
+    'quasar',
+    'ember',
+    'titan',
+    'genesis',
+    'universe',
+  ];
+
+  static final List<Character> roster = List.unmodifiable([
+    for (final id in activeIds) allRoster.firstWhere((c) => c.id == id),
+  ]);
+
+  static final Set<String> _allIds =
+      allRoster.map((character) => character.id).toSet();
+
+  static bool containsId(String id) => _allIds.contains(id);
+
+  /// Maps a retired character to the closest active visual without charging
+  /// the player again. The raw retired ID is preserved by the ownership
+  /// service for future catalog migrations.
+  static const Map<String, String> retiredToActive = {
+    'cyber': 'quasar',
+    'phantom': 'spectre',
+    'aurora': 'volt',
+    'nebula': 'genesis',
+    'zenith': 'nova',
+    'singularity': 'universe',
+    'cosmos': 'universe',
+    'eclipse': 'spectre',
+    'nova_prime': 'nova',
+    'infinity': 'pulse',
+    'omega_plus': 'quasar',
+    'myth': 'ember',
+    'legend': 'pulse',
+    'apex': 'titan',
+  };
+
+  static String mapToActiveId(String id) =>
+      activeIds.contains(id) ? id : (retiredToActive[id] ?? activeIds.first);
+
+  static Character byId(String id) => allRoster.firstWhere(
+        (c) => c.id == id,
+        orElse: () => allRoster.first,
+      );
+
+  static CharacterTier tierFor(String id) {
+    return switch (id) {
+      'titan' => CharacterTier.premium,
+      'genesis' => CharacterTier.elite,
+      'universe' => CharacterTier.legendary,
+      _ => CharacterTier.standard,
+    };
+  }
 }

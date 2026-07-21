@@ -10,6 +10,7 @@ import 'package:neon_flap1_game/firebase/firebase_service.dart';
 import 'package:neon_flap1_game/firebase/player_name_generator_service.dart';
 import 'package:neon_flap1_game/firebase/player_name_service.dart';
 import 'package:neon_flap1_game/widgets/animated_background.dart';
+import 'package:neon_flap1_game/widgets/neon_button.dart';
 
 /// Availability states for the player name input.
 enum _AvailabilityStatus {
@@ -27,7 +28,7 @@ enum _AvailabilityStatus {
 class ChoosePlayerNameScreen extends StatefulWidget {
   const ChoosePlayerNameScreen({super.key, required this.onComplete});
 
-  final VoidCallback onComplete;
+  final FutureOr<void> Function() onComplete;
 
   @override
   State<ChoosePlayerNameScreen> createState() => _ChoosePlayerNameScreenState();
@@ -88,11 +89,17 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
       return;
     }
 
-    final validator = sl<FirebaseService>().playerNameService.validator;
+    final firebase = sl<FirebaseService>();
+    final validator = firebase.playerNameValidator;
     final error = validator.validate(text);
 
     if (error != null) {
       _setStatus(_AvailabilityStatus.invalid);
+      return;
+    }
+
+    if (_isOfflineMode) {
+      _setStatus(_AvailabilityStatus.available);
       return;
     }
 
@@ -112,11 +119,13 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
           _scanProgress = 0;
           break;
         case _AvailabilityStatus.checking:
-          _availabilityMessage = 'SCANNING DATABASE...';
+          _availabilityMessage =
+              _isOfflineMode ? 'VALIDATING LOCALLY...' : 'SCANNING DATABASE...';
           _inlineError = null;
           break;
         case _AvailabilityStatus.available:
-          _availabilityMessage = 'PLAYER NAME AVAILABLE';
+          _availabilityMessage =
+              _isOfflineMode ? 'PLAYER NAME READY' : 'PLAYER NAME AVAILABLE';
           _scanProgress = 1;
           break;
         case _AvailabilityStatus.taken:
@@ -138,10 +147,18 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
   Future<void> _checkAvailability(String value) async {
     if (value.isEmpty) return;
 
+    final firebase = sl<FirebaseService>();
+    if (_isOfflineMode) {
+      final error = firebase.playerNameValidator.validate(value);
+      _setStatus(error == null
+          ? _AvailabilityStatus.available
+          : _AvailabilityStatus.invalid);
+      return;
+    }
+
     _setStatus(_AvailabilityStatus.checking);
     _startScanAnimation();
 
-    final firebase = sl<FirebaseService>();
     final uid = firebase.uid;
 
     if (uid == null) {
@@ -225,7 +242,9 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
     });
 
     final generator = sl<PlayerNameGeneratorService>();
-    final available = await generator.findAvailable();
+    final available = _isOfflineMode
+        ? generator.generateRaw()
+        : await generator.findAvailable();
 
     if (!mounted) return;
 
@@ -246,6 +265,34 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
 
   Future<void> _submit() async {
     if (_formKey.currentState?.validate() != true) return;
+    final firebase = sl<FirebaseService>();
+
+    if (_isOfflineMode) {
+      final error = firebase.playerNameValidator.validate(_controller.text);
+      if (error != null) {
+        setState(() => _inlineError = error);
+        _setStatus(_AvailabilityStatus.invalid);
+        return;
+      }
+      setState(() {
+        _checking = true;
+        _inlineError = null;
+      });
+      final result = await firebase.setOfflinePlayerName(_controller.text);
+      if (!mounted) return;
+      if (result == PlayerNameResult.success) {
+        await widget.onComplete();
+        return;
+      }
+      setState(() {
+        _checking = false;
+        _inlineError = result == PlayerNameResult.invalid
+            ? 'Invalid player name.'
+            : 'Could not save this profile. Please retry.';
+      });
+      return;
+    }
+
     if (_status != _AvailabilityStatus.available) {
       _checkAvailability(_controller.text);
       return;
@@ -256,7 +303,6 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
       _inlineError = null;
     });
 
-    final firebase = sl<FirebaseService>();
     final uid = firebase.uid;
     if (uid == null) {
       setState(() {
@@ -296,7 +342,7 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
         firebase.player.updateUsername(_controller.text);
         firebase.refreshPlayerState();
         try {
-          widget.onComplete();
+          await widget.onComplete();
         } catch (e) {
           if (kDebugMode) debugPrint('Navigation failed: $e');
           if (mounted) {
@@ -326,6 +372,12 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
         });
         break;
     }
+  }
+
+  bool get _isOfflineMode {
+    final firebase = sl<FirebaseService>();
+    return firebase.isOfflineGuest ||
+        firebase.hasActiveIncompleteOfflineProfile;
   }
 
   Color _getStatusColor(BuildContext context) {
@@ -714,7 +766,7 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
               counterText: '',
             ),
             validator: (v) {
-              final error = firebase.playerNameService.validateFormat(v ?? '');
+              final error = firebase.playerNameValidator.validate(v ?? '');
               if (error != null) {
                 _setStatus(_AvailabilityStatus.invalid);
                 return null;
@@ -739,43 +791,19 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
     final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: double.infinity,
-      child: TextButton.icon(
-        onPressed: _checking ? null : _generateRandom,
-        icon: AnimatedBuilder(
-          animation: _glowPulse,
-          builder: (context, child) {
-            return Icon(
-              Icons.casino_rounded,
-              size: 18,
-              color: _checking
-                  ? scheme.primary.withOpacity(0.4)
-                  : scheme.primary.withOpacity(0.7 + _glowPulse.value * 0.3),
-            );
-          },
-        ),
-        label: Text(
-          'GENERATE RANDOM PLAYER NAME',
-          style: TextStyle(
-            fontFamily: NeonTextStyle.fontFamily,
-            fontSize: isSmallScreen ? 11 : 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2,
-            color: _checking
-                ? scheme.primary.withOpacity(0.4)
-                : scheme.primary.withOpacity(0.9),
+      child: AnimatedBuilder(
+        animation: _glowPulse,
+        builder: (context, child) => NeonButton(
+          label: 'GENERATE RANDOM PLAYER NAME',
+          icon: Icons.casino_rounded,
+          color: Color.lerp(
+            scheme.primary,
+            NeonPalette.cyan,
+            _glowPulse.value * 0.25,
           ),
-        ),
-        style: TextButton.styleFrom(
-          padding: EdgeInsets.symmetric(
-            vertical: isSmallScreen ? 10 : 14,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(
-              color: scheme.primary.withOpacity(0.3),
-            ),
-          ),
-          backgroundColor: scheme.primary.withOpacity(0.04),
+          height: isSmallScreen ? 48 : 52,
+          fontSize: isSmallScreen ? 11 : 12,
+          onPressed: _checking ? null : _generateRandom,
         ),
       ),
     );
@@ -786,94 +814,16 @@ class _ChoosePlayerNameScreenState extends State<ChoosePlayerNameScreen>
     final canSubmit = isAvailable && !_checking;
     final scheme = Theme.of(context).colorScheme;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      width: double.infinity,
+    return NeonButton(
+      label: isAvailable ? 'ENTER THE GRID' : 'CONNECT',
+      icon: Icons.arrow_forward_rounded,
+      color: canSubmit ? scheme.secondary : scheme.primary,
       height: 56,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: LinearGradient(
-          colors: canSubmit
-              ? [
-                  scheme.secondary.withOpacity(0.9),
-                  scheme.secondary.withOpacity(0.6),
-                ]
-              : [
-                  scheme.primary.withOpacity(0.15),
-                  scheme.primary.withOpacity(0.05),
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: canSubmit
-              ? scheme.secondary.withOpacity(0.9)
-              : scheme.primary.withOpacity(0.4),
-          width: 2,
-        ),
-        boxShadow: canSubmit
-            ? [
-                BoxShadow(
-                  color: scheme.secondary.withOpacity(0.5),
-                  blurRadius: 20,
-                  spreadRadius: 1,
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: scheme.primary.withOpacity(0.2),
-                  blurRadius: 12,
-                ),
-              ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: canSubmit ? _submit : null,
-          borderRadius: BorderRadius.circular(14),
-          child: Center(
-            child: _checking
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            scheme.onSecondary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Text(
-                        'CONNECTING...',
-                        style: TextStyle(
-                          fontFamily: NeonTextStyle.fontFamily,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 3,
-                          fontSize: 15,
-                          color: scheme.onSecondary,
-                        ),
-                      ),
-                    ],
-                  )
-                : Text(
-                    isAvailable ? 'ENTER THE GRID' : 'CONNECT',
-                    style: TextStyle(
-                      fontFamily: NeonTextStyle.fontFamily,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 3,
-                      fontSize: 15,
-                      color: canSubmit
-                          ? scheme.onSecondary
-                          : scheme.primary.withOpacity(0.5),
-                    ),
-                  ),
-          ),
-        ),
-      ),
+      fontSize: 15,
+      enabled: canSubmit || _checking,
+      isLoading: _checking,
+      loadingLabel: _isOfflineMode ? 'CREATING PROFILE...' : 'CONNECTING...',
+      onPressed: canSubmit ? _submit : null,
     );
   }
 

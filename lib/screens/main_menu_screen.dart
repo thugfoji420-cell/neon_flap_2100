@@ -1,20 +1,16 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:neon_flap1_game/core/constants/app_constants.dart';
 import 'package:neon_flap1_game/core/di/service_locator.dart';
 import 'package:neon_flap1_game/core/theme/app_theme.dart';
-import 'package:neon_flap1_game/firebase/auth_service.dart';
 import 'package:neon_flap1_game/firebase/firebase_service.dart';
 import 'package:neon_flap1_game/routing/route_transitions.dart';
 import 'package:neon_flap1_game/screens/game_screen.dart';
 import 'package:neon_flap1_game/services/audio_service.dart';
 import 'package:neon_flap1_game/services/coin_service.dart';
 import 'package:neon_flap1_game/services/owned_characters_service.dart';
-import 'package:neon_flap1_game/services/storage_service.dart';
 import 'package:neon_flap1_game/services/ad_service.dart';
+import 'package:neon_flap1_game/services/settings_service.dart';
 import 'package:neon_flap1_game/screens/google_sign_in_screen.dart';
 import 'package:neon_flap1_game/store/achievements_dialog.dart';
 import 'package:neon_flap1_game/store/leaderboard_dialog.dart';
@@ -24,24 +20,22 @@ import 'package:neon_flap1_game/store/coin_shop_screen.dart';
 import 'package:neon_flap1_game/store/daily_reward_dialog.dart';
 import 'package:neon_flap1_game/widgets/animated_background.dart';
 import 'package:neon_flap1_game/widgets/banner_ad_slot.dart';
-import 'package:neon_flap1_game/widgets/coin_chip.dart';
+import 'package:neon_flap1_game/widgets/character_avatar.dart';
 import 'package:neon_flap1_game/widgets/difficulty_selector.dart';
+import 'package:neon_flap1_game/widgets/holo_panel.dart';
 import 'package:neon_flap1_game/widgets/neon_button.dart';
+import 'package:neon_flap1_game/widgets/neon_panel.dart';
+import 'package:neon_flap1_game/store/characters_data.dart';
 
 /// Semantic spacing tokens used throughout the main menu layout.
 /// Centralised so adjustments propagate consistently across breakpoints.
-/// Values are kept tight so the entire menu fits on-screen without scrolling.
+/// Values are kept tight while a safe scroll fallback protects short screens.
 class _Spacing {
   const _Spacing._();
 
-  static const double sectionGap = 8;
-  static const double itemGap = 8;
-  static const double rowGap = 6;
-  static const double compactItemGap = 4;
-  static const double titleBottom = 10;
-  static const double topPadding = 12;
-  static const double bottomPadding = 12;
-  static const double cardPadding = 8;
+  static const double sectionGap = 7;
+  static const double compactSectionGap = 5;
+  static const double titleBottom = 8;
 }
 
 class MainMenuScreen extends StatefulWidget {
@@ -56,6 +50,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   // Staggered entrance animation: each section fades+slides in sequentially.
   late final AnimationController _entranceCtrl;
   late final List<CurvedAnimation> _sectionAnimations;
+  bool _isLoggingOut = false;
 
   T? _readService<T extends Object>() {
     try {
@@ -65,20 +60,16 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     }
   }
 
-  void _playButtonSfx() {
-    _readService<AudioService>()?.playSfx(Sfx.buttonClick);
-  }
-
   @override
   void initState() {
     super.initState();
 
-    // Staggered entrance: 5 sections, 150ms offset per section, 800ms total.
+    // Staggered entrance: profile, play, secondary panel.
     _entranceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _sectionAnimations = List.generate(5, (i) {
+    _sectionAnimations = List.generate(3, (i) {
       final start = i * 0.12;
       final end = (start + 0.30).clamp(0.0, 1.0);
       return CurvedAnimation(
@@ -88,7 +79,9 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     });
     _entranceCtrl.forward();
 
-    _readService<AudioService>()?.playMusic(MusicTrack.menu);
+    final settings = _readService<SettingsService>();
+    _readService<AudioService>()
+        ?.playMusic(settings?.menuTrack ?? MusicTrack.menu);
     _readService<AdService>()?.loadInterstitialAd();
   }
 
@@ -117,8 +110,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Exit Game?', style: NeonTextStyle.heading),
-        content:
-            const Text('Close Neon Flap 2100?', style: NeonTextStyle.body),
+        content: const Text('Close Neon Flap 2100?', style: NeonTextStyle.body),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
@@ -135,142 +127,100 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   }
 
   Future<void> _logout() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Log Out?', style: NeonTextStyle.heading),
-        content: const Text(
-            'You will return to the login screen. Your cloud progress stays saved.',
-            style: NeonTextStyle.body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('CANCEL', style: NeonTextStyle.label),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('LOG OUT', style: NeonTextStyle.label),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
+    // Guard before opening the dialog as well as during sign-out. This keeps
+    // rapid taps from stacking dialogs or starting two route transitions.
+    if (!mounted || _isLoggingOut) return;
+    setState(() => _isLoggingOut = true);
 
-    final authService = _readService<AuthService>();
-    final storageService = _readService<StorageService>();
-    if (authService == null) return;
-    await authService.signOut(
-      clearLocalSession: () async {
-        await storageService?.remove('player_name_prompt_completed');
-        // Clear the local coin cache so the next account on this device
-        // loads its own cloud balance, not the previous user's cached value.
-        await storageService?.remove(StorageKeys.coins);
-        await storageService?.remove(StorageKeys.bestScore);
-      },
-    );
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: HoloPanel(
+              color: NeonPalette.red,
+              padding: const EdgeInsets.all(18),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('Log out?', style: NeonTextStyle.heading),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'You will need to sign in again to access your cloud progress and online features.',
+                      style: NeonTextStyle.body,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: NeonButton(
+                            label: 'CANCEL',
+                            fontSize: 12,
+                            height: 42,
+                            onPressed: () =>
+                                Navigator.pop(dialogContext, false),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: NeonButton(
+                            label: 'LOGOUT',
+                            color: NeonPalette.red,
+                            fontSize: 12,
+                            height: 42,
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      if (ok != true || !mounted) return;
+
+      final firebase = _readService<FirebaseService>();
+      if (firebase == null) {
+        throw StateError('Authentication service is unavailable');
+      }
+
+      // showDialog has fully removed its route before this await. Firebase
+      // and Google sign-out therefore cannot rebuild a still-mounted dialog.
+      await firebase.signOut();
+      if (!mounted) return;
+      replaceWithFade(context, const GoogleSignInScreen());
+    } catch (error, stackTrace) {
+      debugPrint('MainMenu logout failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not log out. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoggingOut = false);
+    }
+  }
+
+  Future<void> _signInToSync() async {
     if (!mounted) return;
     replaceWithFade(context, const GoogleSignInScreen());
   }
 
-  Future<void> _deleteAccount() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Delete Account', style: NeonTextStyle.heading),
-        content: const Text(
-          'This will permanently delete your account, username, cloud save, '
-          'coins, achievements, inventory, settings, leaderboard entries, and '
-          'all game progress.\n\nThis action cannot be undone.',
-          style: NeonTextStyle.body,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('CANCEL', style: NeonTextStyle.label),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('DELETE FOREVER', style: NeonTextStyle.label),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (c) => const Center(
-        child: CircularProgressIndicator(color: NeonPalette.cyan),
-      ),
-    );
-
-    try {
-      final firebase = _readService<FirebaseService>();
-      if (firebase == null) {
-        if (!mounted) return;
-        Navigator.pop(context);
-        await showDialog(
-          context: context,
-          builder: (c) => AlertDialog(
-            title:
-                const Text('Delete Failed', style: NeonTextStyle.heading),
-            content: const Text(
-              'Account services are unavailable right now.',
-              style: NeonTextStyle.body,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('OK', style: NeonTextStyle.label),
-              ),
-            ],
-          ),
-        );
-        return;
-      }
-      final error = await firebase.deleteAccount();
-      if (!mounted) return;
-      Navigator.pop(context);
-
-      if (error != null) {
-        await showDialog(
-          context: context,
-          builder: (c) => AlertDialog(
-            title:
-                const Text('Delete Failed', style: NeonTextStyle.heading),
-            content: Text(error, style: NeonTextStyle.body),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('OK', style: NeonTextStyle.label),
-              ),
-            ],
-          ),
-        );
-        return;
-      }
-
-      replaceWithFade(context, const GoogleSignInScreen());
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context);
-      await showDialog(
-        context: context,
-        builder: (c) => AlertDialog(
-          title:
-              const Text('Delete Failed', style: NeonTextStyle.heading),
-          content: Text('An unexpected error occurred: $e',
-              style: NeonTextStyle.body),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c),
-              child: const Text('OK', style: NeonTextStyle.label),
-            ),
-          ],
-        ),
-      );
-    }
+  Future<void> _openLeaderboard() async {
+    if (!mounted) return;
+    await showLeaderboardDialog(context);
   }
 
   // -------------------------------------------------------------------------
@@ -312,68 +262,80 @@ class _MainMenuScreenState extends State<MainMenuScreen>
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final isSmall = width < 400;
-              final isLarge = width > 600;
-              final hp = isSmall ? 16.0 : 28.0;
+              final compactHeight = constraints.maxHeight < 620;
+              final isSmall = NeonLayout.isCompact(context) || compactHeight;
+              final isLarge = NeonLayout.isTablet(context);
+              final basePadding = NeonLayout.screenPadding(context);
+              final padding = EdgeInsets.symmetric(
+                horizontal: basePadding.horizontal / 2,
+                vertical: compactHeight ? 8 : 12,
+              );
+              final gap = compactHeight
+                  ? _Spacing.compactSectionGap
+                  : _Spacing.sectionGap;
+              final availableHeight = (constraints.maxHeight - padding.vertical)
+                  .clamp(0, double.infinity)
+                  .toDouble();
+              // Keep the menu sections on one shared safe width. Without a
+              // minimum width, the intrinsic Column width can collapse around
+              // the profile card, making the name/avatar/coins columns overlap
+              // on phones even though the Play button looks wider.
+              final contentWidth = isLarge
+                  ? constraints.maxWidth
+                      .clamp(0.0, NeonLayout.maxContentWidth)
+                      .toDouble()
+                  : constraints.maxWidth;
 
-              return SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: hp,
-                  vertical: _Spacing.topPadding,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight -
-                        _Spacing.topPadding * 2,
-                  ),
-                  child: Center(
-                    child: Container(
-                      // On wide screens, constrain the column width so the
-                      // layout doesn't stretch horizontally across the full
-                      // desktop / tablet viewport.
-                      constraints: BoxConstraints(
-                        maxWidth: isLarge ? 480 : double.infinity,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          _animateSection(
-                            0,
-                            _buildHeader(
-                              coinService,
-                              ownedService,
-                              firebaseService,
-                              coinAnimation,
-                              ownedAnimation,
-                              firebaseAnimation,
-                            ),
+              return Padding(
+                padding: padding,
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: availableHeight),
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: ConstrainedBox(
+                          // On wide screens, constrain the column width so
+                          // the layout stays intentional rather than stretched.
+                          constraints: BoxConstraints(
+                            minWidth: contentWidth,
+                            maxWidth: contentWidth,
                           ),
-                          SizedBox(height: _Spacing.sectionGap),
-                          _animateSection(
-                            1,
-                            _buildPlayCard(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              _animateSection(
+                                0,
+                                _buildHeader(
+                                  coinService,
+                                  ownedService,
+                                  firebaseService,
+                                  coinAnimation,
+                                  ownedAnimation,
+                                  firebaseAnimation,
+                                  compactHeight: compactHeight,
+                                ),
+                              ),
+                              SizedBox(height: gap),
+                              _animateSection(
+                                1,
+                                _buildPlayCard(compactHeight: compactHeight),
+                              ),
+                              SizedBox(height: gap),
+                              _animateSection(
+                                2,
+                                _buildSecondaryPanel(
+                                  isSmall,
+                                  compactHeight: compactHeight,
+                                ),
+                              ),
+                              SizedBox(height: gap),
+                              const BannerAdSlot(),
+                            ],
                           ),
-                          SizedBox(height: _Spacing.sectionGap),
-                          _animateSection(
-                            2,
-                            _buildStoreCard(isSmall),
-                          ),
-                          SizedBox(height: _Spacing.sectionGap),
-                          _animateSection(
-                            3,
-                            _buildSocialCard(isSmall),
-                          ),
-                          SizedBox(height: _Spacing.sectionGap),
-                          _animateSection(
-                            4,
-                            _buildAccountCard(isSmall),
-                          ),
-                          SizedBox(height: _Spacing.sectionGap),
-                          const BannerAdSlot(),
-                          const SizedBox(height: _Spacing.bottomPadding),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -396,221 +358,296 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     FirebaseService? firebaseService,
     Listenable coinAnimation,
     Listenable ownedAnimation,
-    Listenable firebaseAnimation,
-  ) {
+    Listenable firebaseAnimation, {
+    required bool compactHeight,
+  }) {
+    final selected = ownedService?.selected ?? CharactersData.roster.first;
     return Column(
       children: [
         Semantics(
           header: true,
-          child: Text(
-            'NEON FLAP',
-            style: NeonTextStyle.title.copyWith(fontSize: 32),
-          ),
-        ),
-        Semantics(
-          header: true,
-          child: Text(
-            '2100',
-            style: NeonTextStyle.heading.copyWith(
-              color: NeonPalette.cyan,
-              fontSize: 22,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'NEON FLAP 2100',
+              style: NeonTextStyle.title.copyWith(
+                fontSize: compactHeight ? 29 : NeonLayout.titleSize(context),
+              ),
             ),
           ),
         ),
         SizedBox(height: _Spacing.titleBottom),
         AnimatedBuilder(
-          animation: coinAnimation,
-          builder: (_, __) =>
-              CoinChip(coins: coinService?.coins ?? 0),
-        ),
-        const SizedBox(height: 4),
-        AnimatedBuilder(
-          animation: ownedAnimation,
-          builder: (_, __) => Semantics(
-            label: 'Selected pilot',
-            child: Text(
-              'PILOT: ${(ownedService?.selected.name ?? 'UNKNOWN').toUpperCase()}',
-              style: NeonTextStyle.label.copyWith(fontSize: 12),
-            ),
-          ),
-        ),
-        const SizedBox(height: 2),
-        AnimatedBuilder(
-          animation: firebaseAnimation,
-          builder: (_, __) => Semantics(
-            label: 'Player name',
-            child: Text(
-              'PLAYER NAME: ${(firebaseService?.playerName ?? 'PLAYER').toUpperCase()}',
-              style: NeonTextStyle.label.copyWith(
-                fontSize: 12,
-                color: NeonPalette.cyan,
+          animation: Listenable.merge([
+            coinAnimation,
+            ownedAnimation,
+            firebaseAnimation,
+          ]),
+          builder: (_, __) {
+            final activeCharacter = ownedService?.selected ?? selected;
+            final playerName = firebaseService?.playerName ?? 'PLAYER';
+            final isGuest = firebaseService?.isOfflineGuest ?? false;
+            final isSynced = firebaseService?.isSignedIn ?? false;
+            final scheme = Theme.of(context).colorScheme;
+            final themeColors = NeonTheme.colors(context);
+            final statusLabel = isGuest
+                ? 'GUEST'
+                : isSynced
+                    ? 'SYNCED'
+                    : 'LOCAL';
+            final statusColor = isGuest
+                ? themeColors.warning
+                : isSynced
+                    ? themeColors.success
+                    : scheme.primary;
+            final avatarZoneSize = compactHeight
+                ? 78.0
+                : NeonLayout.isCompact(context)
+                    ? 88.0
+                    : 104.0;
+            final statBoxHeight = compactHeight ? 38.0 : 46.0;
+            final statGap = compactHeight ? 4.0 : 6.0;
+            final sideGap = compactHeight ? 6.0 : 10.0;
+            final fieldHeight = statBoxHeight * 2 + statGap;
+
+            return ProfileHudPanel(
+              padding: EdgeInsets.all(compactHeight ? 10 : 12),
+              child: Semantics(
+                label: 'Player profile for $playerName',
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: SizedBox(
+                        height: fieldHeight,
+                        child: HudSection(
+                          label: 'PLAYER',
+                          icon: Icons.person_outline_rounded,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          child: Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  playerName.toUpperCase(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: NeonTextStyle.body.copyWith(
+                                    fontSize: compactHeight ? 11 : 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: themeColors.hudText,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isGuest
+                                            ? Icons.cloud_off_outlined
+                                            : isSynced
+                                                ? Icons.cloud_done_outlined
+                                                : Icons.storage_outlined,
+                                        size: 11,
+                                        color: statusColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        statusLabel,
+                                        style: NeonTextStyle.label.copyWith(
+                                          fontSize: 8,
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: sideGap),
+                    SizedBox(
+                      width: avatarZoneSize,
+                      height: avatarZoneSize,
+                      child: Transform.scale(
+                        scale: activeCharacter.menuScale,
+                        alignment: Alignment.center,
+                        child: Transform.translate(
+                          offset: activeCharacter.menuOffset,
+                          child: CharacterAvatar(
+                            character: activeCharacter,
+                            size: avatarZoneSize,
+                            selected: true,
+                            frameScale: activeCharacter.menuFrameScale,
+                            artworkScale: activeCharacter.menuArtworkScale,
+                            presentation: CharacterAvatarPresentation.fullBird,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: sideGap),
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ProfileStatBox(
+                            icon: Icons.monetization_on_rounded,
+                            label: 'GOLD',
+                            value: coinService?.coins ?? 0,
+                            accent: themeColors.gold,
+                            height: statBoxHeight,
+                          ),
+                          SizedBox(height: statGap),
+                          ProfileStatBox(
+                            icon: Icons.emoji_events_rounded,
+                            label: 'HIGH SCORE',
+                            value: coinService?.bestScore ?? 0,
+                            accent: scheme.primary,
+                            height: statBoxHeight,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ],
     );
   }
 
   /// Primary action: PLAY with prominent sizing.
-  Widget _buildPlayCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(_Spacing.cardPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            NeonButton(
-              label: 'PLAY',
-              color: NeonPalette.green,
-              height: 52,
-              fontSize: 20,
-              onPressed: _play,
-            ),
-          ],
-        ),
+  Widget _buildPlayCard({required bool compactHeight}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: NeonButton(
+        label: 'PLAY',
+        color: NeonPalette.green,
+        icon: Icons.play_arrow_rounded,
+        height: compactHeight ? 54 : 62,
+        fontSize: compactHeight ? 18 : 20,
+        onPressed: _play,
       ),
     );
   }
 
-  /// Store section: Character Store + Coin Shop.
-  Widget _buildStoreCard(bool isSmall) {
-    final gap = isSmall ? _Spacing.compactItemGap : _Spacing.itemGap;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(_Spacing.cardPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            NeonButton(
-              label: 'CHARACTER STORE',
-              color: NeonPalette.purple,
-              height: 42,
-              fontSize: 16,
-              onPressed: () =>
-                  pushWithFade(context, const CharacterStoreScreen()),
+  Widget _buildSecondaryPanel(
+    bool isSmall, {
+    required bool compactHeight,
+  }) {
+    final firebase = _readService<FirebaseService>();
+    final isGuest = firebase?.isOfflineGuest ?? false;
+    final actions = _secondaryActions(isGuest);
+    return HoloPanel(
+      color: NeonPalette.cyan,
+      padding: EdgeInsets.all(compactHeight ? 7 : 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = 2;
+          final spacing = isSmall ? 5.0 : 7.0;
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: actions.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              crossAxisSpacing: spacing,
+              mainAxisSpacing: spacing,
+              mainAxisExtent: compactHeight ? 39 : 44,
             ),
-            SizedBox(height: gap),
-            NeonButton(
-              label: 'COIN SHOP',
-              color: NeonPalette.yellow,
-              height: 42,
-              fontSize: 16,
-              onPressed: () =>
-                  pushWithFade(context, const CoinShopScreen()),
-            ),
-          ],
-        ),
+            itemBuilder: (context, index) {
+              final action = actions[index];
+              return NeonButton(
+                label: action.label,
+                color: action.color,
+                icon: action.icon,
+                height: compactHeight ? 39 : 44,
+                fontSize: compactHeight ? 10.8 : 12,
+                onPressed: action.onPressed,
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  /// Social section: Leaderboard, Achievements, Daily Rewards.
-  Widget _buildSocialCard(bool isSmall) {
-    final gap = isSmall ? _Spacing.compactItemGap : _Spacing.itemGap;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(_Spacing.cardPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: NeonButton(
-                    label: 'LEADERBOARD',
-                    color: NeonPalette.magenta,
-                    fontSize: 14,
-                    height: 38,
-                    onPressed: () {
-                      _playButtonSfx();
-                      showLeaderboardDialog(context);
-                    },
-                  ),
-                ),
-                SizedBox(width: _Spacing.rowGap),
-                Expanded(
-                  child: NeonButton(
-                    label: 'ACHIEVEMENTS',
-                    color: NeonPalette.green,
-                    fontSize: 14,
-                    height: 38,
-                    onPressed: () {
-                      _playButtonSfx();
-                      showAchievementsDialog(context);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: gap),
-            NeonButton(
-              label: 'DAILY REWARDS',
-              color: NeonPalette.yellow,
-              fontSize: 14,
-              height: 38,
-              onPressed: () {
-                _playButtonSfx();
-                showDailyRewardDialog(context);
-              },
-            ),
-          ],
+  List<_SecondaryAction> _secondaryActions(bool isGuest) => [
+        _SecondaryAction(
+          label: 'CHARACTER SHOP',
+          icon: Icons.face_rounded,
+          color: NeonPalette.purple,
+          onPressed: () => pushWithFade(context, const CharacterStoreScreen()),
         ),
-      ),
-    );
-  }
+        _SecondaryAction(
+          label: 'COIN SHOP',
+          icon: Icons.add_circle_outline_rounded,
+          color: NeonPalette.yellow,
+          onPressed: () => pushWithFade(context, const CoinShopScreen()),
+        ),
+        _SecondaryAction(
+          label: 'LEADERBOARD',
+          icon: Icons.emoji_events_outlined,
+          color: NeonPalette.magenta,
+          onPressed: _openLeaderboard,
+        ),
+        _SecondaryAction(
+          label: 'ACHIEVEMENTS',
+          icon: Icons.military_tech_outlined,
+          color: NeonPalette.green,
+          onPressed: () => showAchievementsDialog(context),
+        ),
+        _SecondaryAction(
+          label: 'DAILY REWARDS',
+          icon: Icons.calendar_month_rounded,
+          color: NeonPalette.yellow,
+          onPressed: () => showDailyRewardDialog(context),
+        ),
+        _SecondaryAction(
+          label: 'SETTINGS',
+          icon: Icons.settings_outlined,
+          color: Theme.of(context).colorScheme.primary,
+          onPressed: () => pushWithFade(context, const SettingsScreen()),
+        ),
+        _SecondaryAction(
+          label: isGuest ? 'SIGN IN TO SYNC' : 'LOGOUT',
+          icon: isGuest ? Icons.cloud_sync_outlined : Icons.logout_rounded,
+          color: isGuest ? NeonPalette.cyan : NeonPalette.red,
+          onPressed: isGuest ? _signInToSync : _logout,
+        ),
+        _SecondaryAction(
+          label: 'EXIT',
+          icon: Icons.power_settings_new_rounded,
+          color: NeonPalette.red,
+          onPressed: _exit,
+        ),
+      ];
+}
 
-  /// Account section: Settings, Logout, Delete Account, Exit.
-  Widget _buildAccountCard(bool isSmall) {
-    final gap = isSmall ? _Spacing.compactItemGap : _Spacing.itemGap;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(_Spacing.cardPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            NeonButton(
-              label: 'SETTINGS',
-              height: 42,
-              fontSize: 16,
-              onPressed: () =>
-                  pushWithFade(context, const SettingsScreen()),
-            ),
-            SizedBox(height: gap),
-            Row(
-              children: [
-                Expanded(
-                  child: NeonButton(
-                    label: 'LOGOUT',
-                    color: NeonPalette.red,
-                    fontSize: 14,
-                    height: 36,
-                    onPressed: _logout,
-                  ),
-                ),
-                SizedBox(width: _Spacing.rowGap),
-                Expanded(
-                  child: NeonButton(
-                    label: 'DELETE ACCOUNT',
-                    color: NeonPalette.red,
-                    fontSize: 13,
-                    height: 36,
-                    onPressed: _deleteAccount,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: gap),
-            NeonButton(
-              label: 'EXIT GAME',
-              color: NeonPalette.red,
-              fontSize: 14,
-              height: 36,
-              onPressed: _exit,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+class _SecondaryAction {
+  const _SecondaryAction({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
 }

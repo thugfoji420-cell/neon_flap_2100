@@ -46,7 +46,23 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: MainMenuScreen()));
     await tester.pump();
 
-    expect(find.text('NEON FLAP'), findsOneWidget);
+    expect(find.text('NEON FLAP 2100'), findsOneWidget);
+  });
+
+  testWidgets('Main menu centers its composition on a portrait phone',
+      (WidgetTester tester) async {
+    await sl.reset();
+    addTearDown(sl.reset);
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MaterialApp(home: MainMenuScreen()));
+    await tester.pump(const Duration(milliseconds: 900));
+
+    final titleCenter = tester.getCenter(find.text('NEON FLAP 2100'));
+    expect(titleCenter.dy, greaterThan(140));
+    expect(titleCenter.dy, lessThan(330));
+    expect(find.text('PLAY'), findsOneWidget);
   });
 
   testWidgets('Main menu exit dialog uses the active theme surface',
@@ -62,9 +78,9 @@ void main() {
     ));
     await tester.pump();
 
-    await tester.ensureVisible(find.text('EXIT GAME'));
+    await tester.ensureVisible(find.text('EXIT'));
     await tester.pump();
-    await tester.tap(find.text('EXIT GAME'), warnIfMissed: false);
+    await tester.tap(find.text('EXIT'), warnIfMissed: false);
     await tester.pump();
 
     expect(find.byType(AlertDialog), findsOneWidget);

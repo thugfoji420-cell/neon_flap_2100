@@ -26,8 +26,13 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.0
+  # Used only by tool/remove_sprite_chroma.dart to convert generated sprite
+  # sheets from their temporary chroma background to transparent PNGs.
+  image: ^4.9.1
 
 flutter_launcher_icons:
   android: true
@@ -38,3 +43,9 @@ flutter:
 
   assets:
     - assets/audio/
+    - assets/audio/candidates/
+    - assets/audio/music/
+    - assets/audio/music/menu/
+    - assets/audio/music/gameplay/
+    - assets/licenses/
+    - assets/characters/

@@ -3,7 +3,9 @@ import 'dart:math';
 
 import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart';
 
+import 'package:neon_flap1_game/characters/character_sprite_catalog.dart';
 import 'package:neon_flap1_game/core/constants/game_constants.dart';
 import 'package:neon_flap1_game/core/di/service_locator.dart';
 import 'package:neon_flap1_game/core/theme/app_theme.dart';
@@ -14,6 +16,7 @@ import 'package:neon_flap1_game/game/components/obstacle.dart';
 import 'package:neon_flap1_game/game/components/player.dart';
 import 'package:neon_flap1_game/game/components/pipes.dart';
 import 'package:neon_flap1_game/game/game_controller.dart';
+import 'package:neon_flap1_game/game/pipe_gap_planner.dart';
 import 'package:neon_flap1_game/models/character.dart';
 import 'package:neon_flap1_game/services/audio_service.dart';
 import 'package:neon_flap1_game/services/coin_service.dart';
@@ -50,17 +53,18 @@ class NeonFlapGame extends FlameGame {
   double _currentGap = GameConstants.pipeGap;
   int _colorIndex = 0;
   double _shakeTime = 0;
-  bool _pipeZigZag = false;
   int _activePipeCount = 0;
   final Random _rnd = Random();
+  final PipeGapPlanner _gapPlanner = PipeGapPlanner();
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // Zoom the camera OUT so the player sees ~3 upcoming pipe sets. This only
-    // changes the view/layout; physics, speeds and spawn timing are untouched.
+    // Zooming the actual camera viewfinder expands the visible world without
+    // changing gameplay physics, speed, pipe spacing or player size.
     camera.viewfinder.zoom = GameConstants.viewZoom;
+    _gapPlanner.reset();
 
     // Position the player at ~22% from the left edge so ~78% of the visible
     // world is ahead, clearly showing approximately two upcoming pipe gaps.
@@ -71,6 +75,14 @@ class NeonFlapGame extends FlameGame {
     // the raw screen [size]. Draw the background/ground across the FULL visible
     // area (size / zoom) so nothing is left blank where upcoming pipes appear.
     _rebuildWorldDecor(size / GameConstants.viewZoom);
+
+    // Decode the selected six-frame sheet before the round becomes playable.
+    // The same cache is shared with Flutter's shop and main-menu preview.
+    try {
+      await CharacterSpriteCache.preload(character.id);
+    } catch (error) {
+      debugPrint('Unable to preload character sprite ${character.id}: $error');
+    }
 
     player = Player(character: character);
     final p = player!;
@@ -153,8 +165,7 @@ class NeonFlapGame extends FlameGame {
     if (_shakeTime > 0) {
       _shakeTime -= dt;
       final t = _shakeTime * 40;
-      camera.viewfinder.position =
-          Vector2(sin(t * 1.7) * 9, cos(t * 2.3) * 9);
+      camera.viewfinder.position = Vector2(sin(t * 1.7) * 9, cos(t * 2.3) * 9);
     } else if (camera.viewfinder.position.length > 0.001) {
       camera.viewfinder.position = Vector2.zero();
     }
@@ -218,6 +229,14 @@ class NeonFlapGame extends FlameGame {
     return null;
   }
 
+  int _activeCoinCount() {
+    var count = 0;
+    for (final coin in _coinPool) {
+      if (coin.active) count++;
+    }
+    return count;
+  }
+
   Obstacle? _acquireObstacle() {
     for (final o in _obstaclePool) {
       if (!o.active) return o;
@@ -237,63 +256,95 @@ class NeonFlapGame extends FlameGame {
     }
     if (rightmost > size.x - GameConstants.pipeSpacing) return;
 
-    final color = NeonPalette.pipeCycle[_colorIndex++ % NeonPalette.pipeCycle.length];
-    final gap = _currentGap;
-    final margin = 40.0;
-    final minY = gap / 2 + margin;
-    final maxY = worldHeight - groundHeight - gap / 2 - margin;
-    final centerY = minY + _rnd.nextDouble() * (maxY - minY);
+    final color =
+        NeonPalette.pipeCycle[_colorIndex++ % NeonPalette.pipeCycle.length];
     final score = controller.score;
-    // Alternating diagonal zig-zag: bottom pipe shifts ±45px so each pair
-    // creates a visible left/right offset pattern.
-    final bottomOffset = _pipeZigZag ? -45.0 : 45.0;
-    _pipeZigZag = !_pipeZigZag;
+    // Preserve a full player-sized safety buffer at both walls before asking
+    // the planner for a randomized vertical opening. This handles every
+    // Android aspect ratio without generating an impossible gap.
+    final topClearance = max(44.0, worldHeight * 0.09).toDouble();
+    final bottomClearance = max(28.0, worldHeight * 0.05).toDouble();
+    final playableHeight =
+        worldHeight - groundHeight - topClearance - bottomClearance;
+    final maxFairGap = playableHeight - GameConstants.playerSize * 2.4;
+    if (maxFairGap < GameConstants.playerSize * 2.6) return;
+    final gap = min(_currentGap, maxFairGap);
+    final minY = topClearance + gap / 2;
+    final maxY = worldHeight - groundHeight - bottomClearance - gap / 2;
+    final centerY = _gapPlanner.nextCenter(
+      minCenter: minY,
+      maxCenter: maxY,
+      score: score,
+      config: difficulty.config,
+    );
 
     final pipe = _acquirePipe();
-    if (pipe != null) {
-      pipe.spawn(
-        x: size.x + GameConstants.pipeWidth,
-        centerY: centerY,
-        gap: gap,
-        speed: _speed,
-        worldHeight: worldHeight,
-        color: color,
-        bottomOffsetX: bottomOffset,
-      );
-    }
+    if (pipe == null) return;
+    final motionPhase = _rnd.nextDouble() * pi * 2;
+    pipe.spawn(
+      x: size.x + GameConstants.pipeWidth,
+      centerY: centerY,
+      gap: gap,
+      speed: _speed,
+      worldHeight: worldHeight,
+      color: color,
+      motion: difficulty.config.pipeMotion,
+      minCenterY: minY,
+      maxCenterY: maxY,
+      motionPhase: motionPhase,
+    );
 
     // Coins ride through the gap for satisfying collection lines.
-    final coinCount = 1 + _rnd.nextInt(3);
-    final coinX = size.x + GameConstants.pipeWidth + 30 + bottomOffset * 0.5;
-    for (var i = 0; i < coinCount; i++) {
-      final coin = _acquireCoin();
-      if (coin == null) break;
-      coin.spawn(
-        position: Vector2(
-          coinX + i * 40,
-          centerY,
-        ),
-        speed: _speed,
-      );
+    final coinConfig = difficulty.config.coinSpawn;
+    final activeCoins = _activeCoinCount();
+    final remainingCoins = coinConfig.maxActiveCoins - activeCoins;
+    if (remainingCoins > 0 && _rnd.nextDouble() < coinConfig.spawnChance) {
+      final clusterMax = min(coinConfig.maxCoins, remainingCoins);
+      final clusterMin = min(coinConfig.minCoins, clusterMax);
+      final coinCount = clusterMin + _rnd.nextInt(clusterMax - clusterMin + 1);
+      final coinX = size.x + GameConstants.pipeWidth + 30;
+      for (var i = 0; i < coinCount; i++) {
+        final coin = _acquireCoin();
+        if (coin == null) break;
+        coin.spawn(
+          position: Vector2(
+            coinX + i * 40,
+            pipe.baseCenterY,
+          ),
+          speed: _speed,
+          motionAmplitude: pipe.motionAmplitude,
+          motionSpeed: pipe.motionSpeed,
+          motionPhase: pipe.motionPhase,
+        );
+      }
     }
 
-    // Optional obstacle inside a wall region (fair: never in the gap).
+    // Optional obstacle stays completely inside a pipe wall, including its
+    // animation range, so it can never reduce a generated fair opening.
     final freq = difficulty.config.obstacleFrequencyForScore(score);
     if (freq > 0 && _rnd.nextDouble() < freq) {
       final obs = _acquireObstacle();
       if (obs != null) {
         final isHazard = difficulty.config.hazards && _rnd.nextDouble() < 0.5;
-        final inTop = _rnd.nextBool();
-        final wallY = inTop
-            ? (gap / 2 + margin) * 0.5
-            : (maxY + (worldHeight - groundHeight)) / 2;
+        final obstacleHalf = GameConstants.obstacleSize / 2;
+        final amplitude = isHazard ? 22.0 : 28.0;
+        final topWallBottom = centerY - gap / 2;
+        final bottomWallTop = centerY + gap / 2;
+        final playfieldBottom = worldHeight - groundHeight;
+        final topFits = topWallBottom >= (obstacleHalf + amplitude) * 2;
+        final bottomFits =
+            playfieldBottom - bottomWallTop >= (obstacleHalf + amplitude) * 2;
+        if (!topFits && !bottomFits) return;
+        final inTop = topFits && (!bottomFits || _rnd.nextBool());
+        final wallY =
+            inTop ? topWallBottom / 2 : (bottomWallTop + playfieldBottom) / 2;
         final obSpeed = isHazard
             ? difficulty.config.obstacleSpeedForScore(score) * 1.8
             : difficulty.config.obstacleSpeedForScore(score);
         obs.spawn(
           x: size.x + GameConstants.pipeWidth + 20,
           baseY: wallY,
-          amplitude: 40,
+          amplitude: amplitude,
           horizontalSpeed: obSpeed,
           worldHeight: worldHeight,
           kind: isHazard ? ObstacleKind.hazard : ObstacleKind.drifting,

@@ -99,17 +99,17 @@ void main() {
     test('notifies listeners on addCoins', () async {
       int notifyCount = 0;
       coinService.addListener(() => notifyCount++);
-      
+
       await coinService.addCoins(10);
       expect(notifyCount, 1);
     });
 
     test('notifies listeners on spendCoins', () async {
       await coinService.addCoins(20);
-      
+
       int notifyCount = 0;
       coinService.addListener(() => notifyCount++);
-      
+
       await coinService.spendCoins(5);
       expect(notifyCount, 1);
     });
@@ -117,7 +117,7 @@ void main() {
     test('notifies listeners on recordScore', () async {
       int notifyCount = 0;
       coinService.addListener(() => notifyCount++);
-      
+
       await coinService.recordScore(100);
       expect(notifyCount, 1);
     });
@@ -126,21 +126,21 @@ void main() {
   group('CoinService persistence', () {
     test('coins are persisted to storage', () async {
       await coinService.addCoins(100);
-      
+
       // Create new instance with same storage
       final newService = CoinService(fakeStorage);
       await newService.load();
-      
+
       expect(newService.coins, 100);
     });
 
     test('bestScore is persisted to storage', () async {
       await coinService.recordScore(500);
-      
+
       // Create new instance with same storage
       final newService = CoinService(fakeStorage);
       await newService.load();
-      
+
       expect(newService.bestScore, 500);
     });
   });

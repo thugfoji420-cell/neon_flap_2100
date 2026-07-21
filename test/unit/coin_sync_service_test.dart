@@ -35,6 +35,10 @@ class _FakePlayerService implements PlayerService {
     required bool sound,
     required bool vibration,
     String language = 'English',
+    double? musicVolume,
+    double? sfxVolume,
+    String? menuTrackId,
+    String? gameplayTrackId,
   }) async {}
 
   @override
@@ -111,6 +115,24 @@ class _MockFirebaseService extends ChangeNotifier implements FirebaseService {
 
   @override
   bool get isSignedIn => _uid != null;
+
+  @override
+  bool get isCloudAvailable => true;
+
+  @override
+  bool get isOfflineGuest => false;
+
+  @override
+  bool get hasOfflineProfile => false;
+
+  @override
+  bool get hasCompletedOfflineProfile => false;
+
+  @override
+  bool get hasIncompleteOfflineProfile => false;
+
+  @override
+  bool get hasActiveIncompleteOfflineProfile => false;
 
   @override
   bool get initializing => false;

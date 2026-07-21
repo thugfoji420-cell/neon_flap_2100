@@ -104,8 +104,7 @@ class FakeCoinService extends CoinService {
 
 /// A fake [OwnedCharactersService] that does nothing on load.
 class FakeOwnedCharactersService extends OwnedCharactersService {
-  FakeOwnedCharactersService()
-      : super(FakeStorageService(), FakeCoinService());
+  FakeOwnedCharactersService() : super(FakeStorageService(), FakeCoinService());
 
   @override
   Future<void> load() async {}
@@ -154,8 +153,17 @@ class FakePlayerNameValidatorForTests {
   static const int maxLength = 16;
 
   final Set<String> blockedWords = {
-    'admin', 'root', 'moderator', 'support', 'official',
-    'fuck', 'shit', 'bitch', 'nigger', 'nazi', 'hitler',
+    'admin',
+    'root',
+    'moderator',
+    'support',
+    'official',
+    'fuck',
+    'shit',
+    'bitch',
+    'nigger',
+    'nazi',
+    'hitler',
   };
 
   String? validate(String value) {
@@ -342,8 +350,7 @@ class FakeFirebaseService extends ChangeNotifier {
     }
   }
 
-  Future<({int coins, int highScore, bool playerDocumentExists})?>
-      bootstrap({
+  Future<({int coins, int highScore, bool playerDocumentExists})?> bootstrap({
     required int localCoins,
     required int localHighScore,
     required String avatarId,

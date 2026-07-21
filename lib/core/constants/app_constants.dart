@@ -34,6 +34,18 @@ class AppConstants {
   static const String dataDeletionUrl = '$_baseDocs/data-deletion.html';
 }
 
+/// Account-specific, non-purchasable grants. A grant is checked against the
+/// verified Google email returned by Firebase and only writes that user's own
+/// inventory document through the existing authenticated sync path.
+class AccountEntitlements {
+  const AccountEntitlements._();
+
+  static const String _allCharacterAccount = 'r.mubashar.rm@gmail.com';
+
+  static bool unlocksAllCharacters(String? email) =>
+      email?.trim().toLowerCase() == _allCharacterAccount;
+}
+
 /// Keys used for persistent local storage (SharedPreferences).
 class StorageKeys {
   const StorageKeys._();
@@ -41,6 +53,9 @@ class StorageKeys {
   static const String coins = 'nf_total_coins';
   static const String bestScore = 'nf_best_score';
   static const String unlockedCharacters = 'nf_unlocked_characters';
+  static const String retiredUnlockedCharacters =
+      'nf_retired_unlocked_characters';
+  static const String characterCatalogVersion = 'nf_character_catalog_version';
   static const String selectedCharacter = 'nf_selected_character';
   static const String hasSeenAppOpenAd = 'nf_has_seen_app_open_ad';
   static const String settings = 'nf_settings';
@@ -50,11 +65,32 @@ class StorageKeys {
   static const String playerStats = 'nf_player_stats';
   static const String achievementProgress = 'nf_achievement_progress';
   static const String leaderboard = 'nf_leaderboard';
+  static const String guestEasyBest = 'nf_guest_easy_best';
+  static const String guestNormalBest = 'nf_guest_normal_best';
+  static const String guestHardBest = 'nf_guest_hard_best';
   static const String completedGames = 'nf_completed_games';
   static const String lastInterstitialGame = 'nf_last_interstitial_game';
   static const String themeMode = 'nf_theme_mode';
   static const String dailyRewardLastClaim = 'nf_daily_reward_last_claim';
   static const String dailyRewardClaimedDay = 'nf_daily_reward_claimed_day';
-  static const String dailyRewardClaimedStreak = 'nf_daily_reward_claimed_streak';
-  static const String dailyRewardPendingOffline = 'nf_daily_reward_pending_offline';
+  static const String dailyRewardClaimedStreak =
+      'nf_daily_reward_claimed_streak';
+  static const String dailyRewardPendingOffline =
+      'nf_daily_reward_pending_offline';
+  static const String offlineGuestId = 'nf_offline_guest_id';
+  static const String offlinePlayerName = 'nf_offline_player_name';
+  static const String hasOfflineProfile = 'nf_has_offline_profile';
+  static const String offlineProfileComplete = 'nf_offline_profile_complete';
+  static const String isOfflinePlayer = 'nf_is_offline_player';
+  static const String offlineProfileCreatedAt = 'nf_offline_profile_created_at';
+  static const String offlineProfileLastPlayed =
+      'nf_offline_profile_last_played';
+  static const String offlineProfileSnapshot = 'nf_offline_profile_snapshot';
+  static const String guestMigrationId = 'nf_guest_migration_id';
+  static const String guestMigrationStatus = 'nf_guest_migration_status';
+  static const String guestMigrationCompletedAt =
+      'nf_guest_migration_completed_at';
+  static const String guestMigrationCloudUid = 'nf_guest_migration_cloud_uid';
+  static const String playerNamePromptCompleted =
+      'player_name_prompt_completed';
 }

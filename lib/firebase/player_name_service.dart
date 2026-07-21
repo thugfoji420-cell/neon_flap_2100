@@ -71,7 +71,8 @@ class PlayerNameService {
     final display = value.trim();
     final lower = _validator.toLookupKey(value);
 
-    final previousLower = await _safe(() => _repository.currentLower(profile.uid));
+    final previousLower =
+        await _safe(() => _repository.currentLower(profile.uid));
     // No-op if unchanged.
     if (previousLower != null && previousLower == lower) {
       return PlayerNameResult.success;

@@ -22,8 +22,16 @@ class _AchievementsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final achievements = sl<AchievementService>();
-    final stats = achievements.stats;
+    AchievementService? achievements;
+    try {
+      achievements = sl<AchievementService>();
+    } catch (_) {
+      // Keep the dialog renderable if a transient startup failure leaves the
+      // service unavailable.
+    }
+    final stats = achievements?.stats ?? const PlayerStats();
+    final progressById =
+        achievements?.progress ?? const <String, AchievementProgress>{};
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       backgroundColor: Colors.transparent,
@@ -68,8 +76,8 @@ class _AchievementsDialog extends StatelessWidget {
               child: SingleChildScrollView(
                 child: Column(
                   children: AchievementDefinition.all.map((def) {
-                    final current = achievements.getProgress(def.statKey);
-                    final existing = achievements.progress[def.achievement.id];
+                    final current = achievements?.getProgress(def.statKey) ?? 0;
+                    final existing = progressById[def.achievement.id];
                     final claimed = existing?.claimed ?? false;
                     final progress = existing?.progress ?? 0;
                     final pct = def.achievement.target > 0

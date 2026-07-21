@@ -37,13 +37,23 @@ class CoinSyncService {
   /// Backoff timer for the next retry after a failed/network write.
   Timer? _retryTimer;
   int _consecutiveFails = 0;
+  bool _attached = false;
 
   /// Wires this service to the [CoinService] listener. Called once at startup.
   void attach() {
+    if (_attached) return;
+    try {
+      if (sl<FirebaseService>().isOfflineGuest) return;
+    } catch (_) {
+      return;
+    }
+    _attached = true;
     final coins = sl<CoinService>();
     // Replay anything left from a previous session that never reached the cloud.
-    _pendingTotal = _storage.getInt(StorageKeys.pendingCloudCoins) ?? coins.coins;
-    _hasPending = _pendingTotal != coins.coins || _storage.getBool(_pendingFlag) == true;
+    _pendingTotal =
+        _storage.getInt(StorageKeys.pendingCloudCoins) ?? coins.coins;
+    _hasPending =
+        _pendingTotal != coins.coins || _storage.getBool(_pendingFlag) == true;
     _storage.setBool(_pendingFlag, _hasPending);
     coins.addListener(_onCoinsChanged);
     _onCoinsChanged();
@@ -52,6 +62,8 @@ class CoinSyncService {
   /// Removes the [CoinService] listener and cancels any pending retry. Safe to
   /// call on every [CoinSyncService] lifecycle end (e.g. hot restart).
   void detach() {
+    if (!_attached) return;
+    _attached = false;
     _debounceTimer?.cancel();
     _debounceTimer = null;
     _retryTimer?.cancel();
@@ -63,6 +75,17 @@ class CoinSyncService {
     }
   }
 
+  /// Stops writes from the previous account and clears its persisted journal
+  /// before another Google account can authenticate on this device.
+  Future<void> resetForAccountChange() async {
+    detach();
+    _pendingTotal = 0;
+    _hasPending = false;
+    _consecutiveFails = 0;
+    await _storage.remove(StorageKeys.pendingCloudCoins);
+    await _storage.setBool(_pendingFlag, false);
+  }
+
   static const String _pendingFlag = 'nf_coin_sync_pending';
 
   /// Debounce timer for SharedPreferences writes during rapid coin bursts
@@ -72,6 +95,15 @@ class CoinSyncService {
   static const _debounceDelay = Duration(milliseconds: 150);
 
   void _onCoinsChanged() {
+    if (!_attached) return;
+    final firebase = sl<FirebaseService>();
+    if (firebase.isOfflineGuest) {
+      _hasPending = false;
+      _retryTimer?.cancel();
+      _storage.setBool(_pendingFlag, false);
+      _storage.remove(StorageKeys.pendingCloudCoins);
+      return;
+    }
     final total = sl<CoinService>().coins;
     _pendingTotal = total;
     _hasPending = true;
@@ -91,11 +123,10 @@ class CoinSyncService {
   void flushNow() => _scheduleFlush(immediate: true);
 
   void _scheduleFlush({bool immediate = false}) {
+    if (!_attached) return;
     _retryTimer?.cancel();
     if (_inFlight) return;
-    final delay = immediate
-        ? Duration.zero
-        : _backoff();
+    final delay = immediate ? Duration.zero : _backoff();
     if (delay == Duration.zero) {
       _flush();
     } else {
@@ -110,9 +141,17 @@ class CoinSyncService {
   }
 
   Future<void> _flush() async {
-    if (_inFlight || !_hasPending) return;
+    if (!_attached || _inFlight || !_hasPending) return;
     final firebase = sl<FirebaseService>();
-    if (firebase.uid == null) {
+    if (firebase.isOfflineGuest) {
+      _hasPending = false;
+      _consecutiveFails = 0;
+      await _storage.setBool(_pendingFlag, false);
+      await _storage.remove(StorageKeys.pendingCloudCoins);
+      return;
+    }
+    final uid = firebase.uid;
+    if (uid == null) {
       // Not signed in yet (e.g. still bootstrapping). Keep pending + retry.
       _consecutiveFails++;
       _scheduleFlush();
@@ -124,7 +163,12 @@ class CoinSyncService {
     final best = sl<CoinService>().bestScore;
     try {
       await firebase.syncCoins(total);
+      // The first write captured the previous profile before its await. Do not
+      // let a completion after logout write the stale total to a newly signed-
+      // in account's cloud-save document.
+      if (!_attached || firebase.uid != uid) return;
       await firebase.player.syncCloudSave(coins: total, highScore: best);
+      if (!_attached || firebase.uid != uid) return;
       // Success: clear the pending journal.
       _hasPending = false;
       _consecutiveFails = 0;
@@ -136,6 +180,9 @@ class CoinSyncService {
       _scheduleFlush();
     } finally {
       _inFlight = false;
+      if (_attached && _hasPending) {
+        _scheduleFlush(immediate: true);
+      }
     }
   }
 
