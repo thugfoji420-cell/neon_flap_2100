@@ -31,6 +31,14 @@ class _DailyRewardDialog extends StatefulWidget {
 
 class _DailyRewardDialogState extends State<_DailyRewardDialog>
     with TickerProviderStateMixin {
+  static const _unavailableStatus = DailyRewardStatus(
+    day: 1,
+    streak: 0,
+    canClaim: false,
+    rewardCoins: 0,
+    lastClaim: null,
+  );
+
   DailyRewardStatus? _status;
   bool _busy = false;
   Timer? _countdownTimer;
@@ -60,6 +68,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog>
         curve: const Interval(0.0, 0.3, curve: Curves.easeOut),
       ),
     );
+    _celebrateCtrl.addStatusListener(_onCelebrationStatus);
     _load();
   }
 
@@ -74,9 +83,32 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog>
   // Data loading & claim
   // ---------------------------------------------------------------------------
 
+  T? _readService<T extends Object>() {
+    try {
+      return sl<T>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _onCelebrationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed && mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _load() async {
-    final firebase = sl<FirebaseService>();
-    final status = await firebase.dailyRewardStatus();
+    final firebase = _readService<FirebaseService>();
+    if (firebase == null) {
+      if (mounted) setState(() => _status = _unavailableStatus);
+      return;
+    }
+    DailyRewardStatus status;
+    try {
+      status = await firebase.dailyRewardStatus();
+    } catch (_) {
+      status = _unavailableStatus;
+    }
     if (mounted) {
       setState(() => _status = status);
       _startCountdown(status);
@@ -107,17 +139,24 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog>
   }
 
   Future<void> _claim() async {
+    if (_busy) return;
     setState(() => _busy = true);
-    final firebase = sl<FirebaseService>();
-    final gained = await firebase.claimDailyReward();
-    if (gained > 0) {
-      await sl<CoinService>().addCoins(gained);
-      sl<AudioService>().playSfx(Sfx.rewardReceived);
-      _celebrateCtrl.forward(from: 0);
-      _generateSparks();
+    try {
+      final firebase = _readService<FirebaseService>();
+      final coins = _readService<CoinService>();
+      if (firebase == null || coins == null) return;
+
+      final gained = await firebase.claimDailyReward();
+      if (gained > 0) {
+        await coins.addCoins(gained);
+        _readService<AudioService>()?.playSfx(Sfx.rewardReceived);
+        _celebrateCtrl.forward(from: 0);
+        _generateSparks();
+      }
+      await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    await _load();
-    if (mounted) setState(() => _busy = false);
   }
 
   void _generateSparks() {
@@ -234,6 +273,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog>
   }
 
   Widget _buildHeader(ColorScheme scheme, bool isNarrow) {
+    final firebase = _readService<FirebaseService>();
     return Row(
       children: [
         Expanded(
@@ -247,15 +287,23 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog>
                 ),
               ),
               const SizedBox(height: 4),
-              AnimatedBuilder(
-                animation: sl<FirebaseService>(),
-                builder: (_, __) => Text(
-                  'PLAYER: ${sl<FirebaseService>().playerName.toUpperCase()}',
+              if (firebase == null)
+                Text(
+                  'PLAYER: PLAYER',
                   style: NeonTextStyle.label.copyWith(
                     fontSize: isNarrow ? 10 : 14,
                   ),
+                )
+              else
+                AnimatedBuilder(
+                  animation: firebase,
+                  builder: (_, __) => Text(
+                    'PLAYER: ${firebase.playerName.toUpperCase()}',
+                    style: NeonTextStyle.label.copyWith(
+                      fontSize: isNarrow ? 10 : 14,
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -303,8 +351,10 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog>
     // Compute the maximum circle size that fits 7 items across available width.
     final maxWidth = MediaQuery.of(context).size.width * 0.75;
     final availablePerDay = (maxWidth - 40) / 7;
-    final circleSize = (availablePerDay - 12).clamp(16.0, isNarrow ? 28.0 : 36.0);
-    final isCurrentSize = (circleSize * 1.25).clamp(20.0, isNarrow ? 32.0 : 40.0);
+    final circleSize =
+        (availablePerDay - 12).clamp(16.0, isNarrow ? 28.0 : 36.0);
+    final isCurrentSize =
+        (circleSize * 1.25).clamp(20.0, isNarrow ? 32.0 : 40.0);
     final fontSize = (circleSize * 0.42).clamp(9.0, 15.0);
     final coinFontSize = (circleSize * 0.32).clamp(7.0, 10.0);
     final labelFont = isNarrow ? 10.0 : 12.0;
@@ -383,7 +433,8 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog>
     );
   }
 
-  Widget _buildRewardCard(DailyRewardStatus status, ColorScheme scheme, bool isNarrow) {
+  Widget _buildRewardCard(
+      DailyRewardStatus status, ColorScheme scheme, bool isNarrow) {
     return Container(
       padding: EdgeInsets.all(isNarrow ? 12 : 16),
       decoration: BoxDecoration(
@@ -494,8 +545,16 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog>
       );
     }
 
+    final coins = _readService<CoinService>();
+    if (coins == null) {
+      return const NeonButton(
+        label: 'ALREADY CLAIMED',
+        enabled: false,
+      );
+    }
+
     return AnimatedBuilder(
-      animation: sl<CoinService>(),
+      animation: coins,
       builder: (_, __) => NeonButton(
         label: 'ALREADY CLAIMED',
         onPressed: null,

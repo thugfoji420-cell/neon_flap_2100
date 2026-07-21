@@ -7,9 +7,8 @@ import 'package:neon_flap1_game/firebase/player_name_service.dart';
 import 'package:neon_flap1_game/widgets/neon_button.dart';
 import 'package:neon_flap1_game/widgets/neon_panel.dart';
 
-/// "Change Player Name" dialog used from Settings. Verifies uniqueness, rewrites
-/// the profile + uniqueness index via a transactional write (handled by
-/// [PlayerNameService]), and reports inline errors.
+/// "Change Player Name" dialog used from Settings. Online users keep the
+/// Firestore uniqueness transaction; guest users validate and save locally.
 Future<void> showChangePlayerNameDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
@@ -47,7 +46,7 @@ class _ChangePlayerNameDialogState extends State<_ChangePlayerNameDialog> {
 
     final firebase = sl<FirebaseService>();
     final uid = firebase.uid;
-    if (uid == null) {
+    if (uid == null && !firebase.isOfflineGuest) {
       setState(() {
         _saving = false;
         _error = 'Network error. Please retry.';
@@ -77,7 +76,9 @@ class _ChangePlayerNameDialogState extends State<_ChangePlayerNameDialog> {
       case PlayerNameResult.error:
         setState(() {
           _saving = false;
-          _error = 'Network error. Please retry.';
+          _error = firebase.isOfflineGuest
+              ? 'Could not save this profile. Please retry.'
+              : 'Network error. Please retry.';
         });
         break;
     }
@@ -132,7 +133,7 @@ class _ChangePlayerNameDialogState extends State<_ChangePlayerNameDialog> {
                   counterStyle: NeonTextStyle.label,
                 ),
                 validator: (v) =>
-                    firebase.playerNameService.validateFormat(v ?? ''),
+                    firebase.playerNameValidator.validate(v ?? ''),
                 onChanged: (_) {
                   if (_error != null) setState(() => _error = null);
                 },

@@ -10,8 +10,10 @@ class AdConstants {
   // ---------------------------------------------------------------------------
   // Production IDs (user-provided)
   // ---------------------------------------------------------------------------
-  static const String productionAppId = 'ca-app-pub-4514520183755342~8331157405';
-  static const String productionBanner = 'ca-app-pub-4514520183755342/6809202498';
+  static const String productionAppId =
+      'ca-app-pub-4514520183755342~8331157405';
+  static const String productionBanner =
+      'ca-app-pub-4514520183755342/6809202498';
   static const String productionInterstitial =
       'ca-app-pub-4514520183755342/2631686702';
   static const String productionAppOpen =
@@ -44,8 +46,7 @@ class AdConstants {
   static String get appId =>
       isDebug ? 'ca-app-pub-3940256099942544~3345871719' : productionAppId;
 
-  static String get bannerAdUnitId =>
-      isDebug ? testBanner : productionBanner;
+  static String get bannerAdUnitId => isDebug ? testBanner : productionBanner;
 
   static String get interstitialAdUnitId =>
       isDebug ? testInterstitial : productionInterstitial;

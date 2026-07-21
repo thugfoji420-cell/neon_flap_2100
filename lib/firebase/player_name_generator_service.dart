@@ -8,12 +8,12 @@ import 'package:neon_flap1_game/firebase/player_name_validator.dart';
 /// against Firestore before returning them.
 class PlayerNameGeneratorService {
   PlayerNameGeneratorService({
-    required FirebaseFirestore firestore,
+    required FirebaseFirestore? firestore,
     PlayerNameValidator? validator,
   })  : _db = firestore,
         _validator = validator ?? PlayerNameValidator();
 
-  final FirebaseFirestore _db;
+  final FirebaseFirestore? _db;
   final PlayerNameValidator _validator;
 
   static const _maxCandidates = 200;
@@ -222,9 +222,12 @@ class PlayerNameGeneratorService {
     final error = _validator.validate(value);
     if (error != null) return false;
 
+    final db = _db;
+    if (db == null) return true;
+
     final lower = _validator.toLookupKey(value);
     try {
-      final doc = await _db.collection('usernames').doc(lower).get();
+      final doc = await db.collection('usernames').doc(lower).get();
       return !doc.exists;
     } catch (_) {
       return false;
@@ -234,6 +237,8 @@ class PlayerNameGeneratorService {
   /// Generates and claims an available username for [uid] in one atomic flow.
   /// Returns the claimed username, or null if none could be found/claimed.
   Future<String?> generateAndClaim(String uid) async {
+    final db = _db;
+    if (db == null) return null;
     final candidates = generateCandidates(count: _maxCandidates);
 
     for (final candidate in candidates) {
@@ -242,16 +247,16 @@ class PlayerNameGeneratorService {
 
       final lower = _validator.toLookupKey(candidate);
       try {
-        final doc = await _db.collection('usernames').doc(lower).get();
+        final doc = await db.collection('usernames').doc(lower).get();
         if (doc.exists) continue;
 
-        final batch = _db.batch();
+        final batch = db.batch();
         batch.set(
-          _db.collection('usernames').doc(lower),
+          db.collection('usernames').doc(lower),
           {'uid': uid, 'createdAt': FieldValue.serverTimestamp()},
         );
         batch.set(
-          _db.collection('players').doc(uid),
+          db.collection('players').doc(uid),
           {
             'username': candidate.trim(),
             'usernameLower': lower,

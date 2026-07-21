@@ -1,202 +1,213 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:collection';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:neon_flap1_game/firebase/firebase_refs.dart';
+import 'package:neon_flap1_game/models/difficulty_config.dart';
 
-/// The three time windows the leaderboard can be viewed by.
-enum LeaderboardScope { global, weekly, monthly }
-
-/// A single row in a cloud leaderboard.
+/// A best-score row for one selected difficulty. The canonical Firestore
+/// document remains `leaderboard/{uid}` so existing authenticated access rules
+/// continue to apply; its `difficultyScores.{mode}` map stores each board.
 @immutable
 class CloudLeaderboardEntry {
   const CloudLeaderboardEntry({
     required this.uid,
     required this.username,
     required this.score,
-    required this.coins,
-    required this.avatar,
+    required this.selectedCharacterId,
   });
 
   final String uid;
   final String username;
   final int score;
-  final int coins;
-  final String avatar;
+  final String selectedCharacterId;
 
   factory CloudLeaderboardEntry.fromDoc(
     String id,
     Map<String, dynamic> data,
-  ) =>
-      CloudLeaderboardEntry(
-        uid: id,
-        username: (data['username'] as String?) ?? 'Player',
-        score: (data['score'] as num?)?.toInt() ?? 0,
-        coins: (data['coins'] as num?)?.toInt() ?? 0,
-        avatar: (data['avatar'] as String?) ?? 'nova',
-      );
+    DifficultyMode difficulty,
+  ) {
+    final scores = data['difficultyScores'];
+    final scoreData =
+        scores is Map ? scores[difficulty.id] as Map<Object?, Object?>? : null;
+    return CloudLeaderboardEntry(
+      uid: (scoreData?['uid'] as String?) ?? (data['uid'] as String?) ?? id,
+      username: (data['username'] as String?) ??
+          (scoreData?['username'] as String?) ??
+          'Player',
+      score: (scoreData?['score'] as num?)?.toInt() ?? 0,
+      selectedCharacterId: (scoreData?['selectedCharacterId'] as String?) ??
+          (data['selectedCharacterId'] as String?) ??
+          // `avatar` supports old rows without treating their global score as
+          // a score for any one difficulty.
+          (data['avatar'] as String?) ??
+          'nova',
+    );
+  }
 }
 
-/// Reads and writes the global / weekly / monthly leaderboards.
-///
-/// Each collection keeps a single document per player (id == uid) holding that
-/// player's best score. Weekly / monthly documents also carry a [periodId] so a
-/// query can return only the current period; the score is reset automatically
-/// when a new period begins.
+@immutable
+class CloudLeaderboardResult {
+  const CloudLeaderboardResult({
+    required this.entries,
+    this.errorMessage,
+  });
+
+  final List<CloudLeaderboardEntry> entries;
+  final String? errorMessage;
+  bool get hasError => errorMessage != null;
+}
+
+/// Reads and writes all-time difficulty boards. `leaderboard/{uid}` holds a
+/// nested record for every mode so no new unauthenticated collection/rule is
+/// required, and a score can only replace its own mode's personal best.
 class CloudLeaderboardService {
   CloudLeaderboardService(this._refs);
 
   final FirebaseRefs _refs;
 
-  /// Simple in-memory TTL cache for leaderboard top() queries. The cache lives
-  /// for the app process and is evicted after [_cacheTtl].
   static const Duration _cacheTtl = Duration(seconds: 30);
-  final _cache = HashMap<LeaderboardScope, _CachedResult>();
-  void _cachePut(LeaderboardScope scope, List<CloudLeaderboardEntry> entries) {
-    _cache[scope] = _CachedResult(entries, DateTime.now());
+  final _cache = HashMap<DifficultyMode, _CachedResult>();
+
+  void _cachePut(
+    DifficultyMode difficulty,
+    List<CloudLeaderboardEntry> entries,
+  ) {
+    _cache[difficulty] = _CachedResult(entries, DateTime.now());
   }
-  List<CloudLeaderboardEntry>? _cacheGet(LeaderboardScope scope) {
-    final cached = _cache[scope];
+
+  List<CloudLeaderboardEntry>? _cacheGet(DifficultyMode difficulty) {
+    final cached = _cache[difficulty];
     if (cached == null) return null;
     if (DateTime.now().difference(cached.at) > _cacheTtl) {
-      _cache.remove(scope);
+      _cache.remove(difficulty);
       return null;
     }
     return cached.entries;
   }
 
-  static String weeklyPeriodId([DateTime? now]) {
-    final date = now ?? DateTime.now();
-    // ISO-8601 week number.
-    final dayOfYear = int.parse(
-      DateTime(date.year, date.month, date.day)
-          .difference(DateTime(date.year, 1, 1))
-          .inDays
-          .toString(),
-    );
-    final week = ((dayOfYear - date.weekday + 10) / 7).floor();
-    return '${date.year}-W${week.toString().padLeft(2, '0')}';
-  }
-
-  static String monthlyPeriodId([DateTime? now]) {
-    final date = now ?? DateTime.now();
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}';
-  }
-
-  /// Submits a score to all three boards, keeping only the best per window.
+  /// Atomically writes only a higher score for [difficulty]. Lower scores do
+  /// not change a board row, preventing gameplay restarts from downgrading a
+  /// personal best or overwriting its selected-character snapshot.
   Future<void> submitScore({
     required String uid,
     required String username,
     required int score,
-    required int coins,
-    required String avatar,
+    required DifficultyMode difficulty,
+    required String selectedCharacterId,
   }) async {
-    final base = {
-      'username': username,
-      'coins': coins,
-      'avatar': avatar,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-
-    // Global: keep the all-time best.
+    if (score <= 0 || uid.isEmpty) return;
+    final ref = _refs.leaderboard.doc(uid);
+    var changed = false;
     try {
-      final ref = _refs.leaderboard.doc(uid);
-      final snap = await ref.get();
-      final prev = (snap.data()?['score'] as num?)?.toInt() ?? 0;
-      if (score > prev) {
-        await ref.set({...base, 'score': score}, SetOptions(merge: true));
-      } else {
-        await ref.set(base, SetOptions(merge: true));
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('leaderboard(global) submit failed: $e');
-    }
+      await _refs.db.runTransaction((transaction) async {
+        final snapshot = await transaction.get(ref);
+        final data = snapshot.data();
+        final scores = data?['difficultyScores'];
+        final scoreMap = scores is Map
+            ? scores[difficulty.id] as Map<Object?, Object?>?
+            : null;
+        final previous = (scoreMap?['score'] as num?)?.toInt() ?? 0;
 
-    // Weekly & monthly: best within the current period.
-    await _submitPeriod(
-      _refs.leaderboardWeekly.doc(uid),
-      periodId: weeklyPeriodId(),
-      base: base,
-      score: score,
-    );
-    await _submitPeriod(
-      _refs.leaderboardMonthly.doc(uid),
-      periodId: monthlyPeriodId(),
-      base: base,
-      score: score,
-    );
-  }
+        final playerFields = <String, Object?>{
+          'uid': uid,
+          'username': username,
+          'selectedCharacterId': selectedCharacterId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (score <= previous) {
+          if (snapshot.exists) transaction.update(ref, playerFields);
+          return;
+        }
 
-  Future<void> _submitPeriod(
-    DocumentReference<Map<String, dynamic>> ref, {
-    required String periodId,
-    required Map<String, dynamic> base,
-    required int score,
-  }) async {
-    try {
-      final snap = await ref.get();
-      final data = snap.data();
-      final samePeriod = data?['periodId'] == periodId;
-      final prev = samePeriod ? (data?['score'] as num?)?.toInt() ?? 0 : 0;
-      if (!samePeriod || score > prev) {
-        await ref.set({
-          ...base,
-          'periodId': periodId,
+        changed = true;
+        final scoreFields = <String, Object?>{
+          'uid': uid,
+          'username': username,
           'score': score,
-        }, SetOptions(merge: true));
-      } else {
-        await ref.set({...base, 'periodId': periodId}, SetOptions(merge: true));
+          'selectedCharacterId': selectedCharacterId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (snapshot.exists) {
+          transaction.update(ref, {
+            ...playerFields,
+            'difficultyScores.${difficulty.id}': scoreFields,
+          });
+        } else {
+          transaction.set(ref, {
+            ...playerFields,
+            'difficultyScores': {difficulty.id: scoreFields},
+          });
+        }
+      });
+      if (changed) _cache.remove(difficulty);
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('leaderboard(${difficulty.id}) submit failed: $error');
       }
-    } catch (e) {
-      if (kDebugMode) debugPrint('leaderboard(period) submit failed: $e');
     }
   }
 
-  /// Fetches the top [limit] rows for a given [scope]. Results are cached
-  /// in memory for 30 seconds to avoid redundant Firestore reads when the
-  /// user switches tabs or reopens the dialog.
-  Future<List<CloudLeaderboardEntry>> top(
-    LeaderboardScope scope, {
+  /// Mirrors a renamed profile into existing difficulty records only. It never
+  /// creates a zero-score leaderboard document for a player who has not flown.
+  Future<void> updateUsername(
+      {required String uid, required String username}) async {
+    if (uid.isEmpty || username.trim().isEmpty) return;
+    final ref = _refs.leaderboard.doc(uid);
+    try {
+      final snapshot = await ref.get();
+      final scores = snapshot.data()?['difficultyScores'];
+      if (!snapshot.exists || scores is! Map) return;
+      final updates = <String, Object?>{'username': username.trim()};
+      for (final mode in DifficultyMode.values) {
+        if (scores[mode.id] is Map) {
+          updates['difficultyScores.${mode.id}.username'] = username.trim();
+        }
+      }
+      await ref.update(updates);
+      _cache.clear();
+    } catch (error) {
+      if (kDebugMode) debugPrint('leaderboard username sync failed: $error');
+    }
+  }
+
+  /// Loads only the active difficulty, rather than issuing three eager reads.
+  /// The result keeps a network error distinct from a genuine empty board.
+  Future<CloudLeaderboardResult> top(
+    DifficultyMode difficulty, {
     int limit = 100,
   }) async {
-    final cached = _cacheGet(scope);
-    if (cached != null) return cached;
+    final cached = _cacheGet(difficulty);
+    if (cached != null) return CloudLeaderboardResult(entries: cached);
     try {
-      Query<Map<String, dynamic>> query;
-      switch (scope) {
-        case LeaderboardScope.global:
-          query = _refs.leaderboard
-              .orderBy('score', descending: true)
-              .limit(limit);
-          break;
-        case LeaderboardScope.weekly:
-          query = _refs.leaderboardWeekly
-              .where('periodId', isEqualTo: weeklyPeriodId())
-              .orderBy('score', descending: true)
-              .limit(limit);
-          break;
-        case LeaderboardScope.monthly:
-          query = _refs.leaderboardMonthly
-              .where('periodId', isEqualTo: monthlyPeriodId())
-              .orderBy('score', descending: true)
-              .limit(limit);
-          break;
+      final field = 'difficultyScores.${difficulty.id}.score';
+      final snapshot = await _refs.leaderboard
+          .orderBy(field, descending: true)
+          .limit(limit)
+          .get();
+      final entries = snapshot.docs
+          .map((document) => CloudLeaderboardEntry.fromDoc(
+                document.id,
+                document.data(),
+                difficulty,
+              ))
+          .where((entry) => entry.score > 0)
+          .toList(growable: false);
+      _cachePut(difficulty, entries);
+      return CloudLeaderboardResult(entries: entries);
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('leaderboard.top(${difficulty.id}) failed: $error');
       }
-      final snap = await query.get();
-      final entries = snap.docs
-          .map((d) => CloudLeaderboardEntry.fromDoc(d.id, d.data()))
-          .toList();
-      _cachePut(scope, entries);
-      return entries;
-    } catch (e) {
-      if (kDebugMode) debugPrint('leaderboard.top($scope) failed: $e');
-      return const [];
+      return const CloudLeaderboardResult(
+        entries: [],
+        errorMessage: 'Unable to load rankings right now. Please try again.',
+      );
     }
   }
 }
 
-/// Timestamped cache entry for a leaderboard scope query.
 class _CachedResult {
   _CachedResult(this.entries, this.at);
   final List<CloudLeaderboardEntry> entries;

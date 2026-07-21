@@ -13,7 +13,7 @@ import 'package:neon_flap1_game/firebase/firebase_refs.dart';
 class AdRewardService {
   AdRewardService(this._refs);
 
-  final FirebaseRefs _refs;
+  final FirebaseRefs? _refs;
   final Random _rng = Random();
 
   /// Records a reward event to Firestore. Returns true on success.
@@ -24,12 +24,14 @@ class AdRewardService {
     required String rewardType,
     required String adUnitId,
   }) async {
+    final refs = _refs;
+    if (refs == null) return false;
     try {
       final now = FieldValue.serverTimestamp();
       final rewardId = '${uid}_${_rng.nextInt(1 << 26)}_$rewardType';
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final playerRef = _refs.player(uid);
+        final playerRef = refs.player(uid);
         final snapshot = await transaction.get(playerRef);
         final data = snapshot.data() ?? {};
 
@@ -49,7 +51,8 @@ class AdRewardService {
       });
 
       if (kDebugMode) {
-        debugPrint('AdRewardService: recorded reward ($rewardType, $coinAmount coins) for $uid');
+        debugPrint(
+            'AdRewardService: recorded reward ($rewardType, $coinAmount coins) for $uid');
       }
       return true;
     } catch (e) {

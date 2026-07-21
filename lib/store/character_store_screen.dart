@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
+import 'package:neon_flap1_game/characters/character_sprite_catalog.dart';
 import 'package:neon_flap1_game/core/di/service_locator.dart';
 import 'package:neon_flap1_game/core/theme/app_theme.dart';
-import 'package:neon_flap1_game/core/utils/neon_paint.dart';
 import 'package:neon_flap1_game/models/character.dart';
 import 'package:neon_flap1_game/services/audio_service.dart';
 import 'package:neon_flap1_game/services/coin_service.dart';
@@ -12,11 +14,66 @@ import 'package:neon_flap1_game/services/achievement_service.dart';
 import 'package:neon_flap1_game/store/characters_data.dart';
 import 'package:neon_flap1_game/widgets/animated_background.dart';
 import 'package:neon_flap1_game/widgets/banner_ad_slot.dart';
+import 'package:neon_flap1_game/widgets/character_avatar.dart';
+import 'package:neon_flap1_game/widgets/neon_button.dart';
 
-/// Premium Character Store: 15 pilots with escalating stats. Tap to unlock
+/// Premium Character Store: ten active pilots with escalating stats. Tap to unlock
 /// (spends coins) or equip (if owned). Always reflects the persisted balance.
-class CharacterStoreScreen extends StatelessWidget {
+class CharacterStoreScreen extends StatefulWidget {
   const CharacterStoreScreen({super.key});
+
+  @override
+  State<CharacterStoreScreen> createState() => _CharacterStoreScreenState();
+}
+
+class _CharacterStoreScreenState extends State<CharacterStoreScreen> {
+  final ValueNotifier<CharacterSpriteFrame> _previewFrame =
+      ValueNotifier(CharacterSpriteFrame.idle);
+  final ScrollController _scrollController = ScrollController();
+  Timer? _previewTimer;
+  var _previewIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startPreviewTimer();
+  }
+
+  // One low-frequency clock drives all built previews. The scroll listener
+  // pauses it during motion, so cached/offscreen cards stay static while the
+  // grid is being rasterized and no card owns an individual ticker.
+  void _startPreviewTimer() {
+    if (_previewTimer != null) return;
+    _previewTimer = Timer.periodic(const Duration(milliseconds: 300), (_) {
+      _previewIndex =
+          (_previewIndex + 1) % CharacterSpriteCatalog.previewLoop.length;
+      _previewFrame.value = CharacterSpriteCatalog.previewLoop[_previewIndex];
+    });
+  }
+
+  void _pausePreviewTimer() {
+    _previewTimer?.cancel();
+    _previewTimer = null;
+    _previewFrame.value = CharacterSpriteFrame.idle;
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollStartNotification ||
+        notification is ScrollUpdateNotification) {
+      _pausePreviewTimer();
+    } else if (notification is ScrollEndNotification) {
+      _startPreviewTimer();
+    }
+    return false;
+  }
+
+  @override
+  void dispose() {
+    _previewTimer?.cancel();
+    _scrollController.dispose();
+    _previewFrame.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,196 +83,287 @@ class CharacterStoreScreen extends StatelessWidget {
       body: AnimatedBackground(
         accent: NeonPalette.purple,
         child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 18),
-              const Text('CHARACTER STORE', style: NeonTextStyle.heading),
-              const SizedBox(height: 8),
-              AnimatedBuilder(
-                animation: coins,
-                builder: (_, __) => Text(
-                  'BALANCE: ${coins.coins} COINS',
-                  style:
-                      NeonTextStyle.label.copyWith(color: NeonPalette.yellow),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: AnimatedBuilder(
-                  animation: owned,
-                  builder: (_, __) => GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisExtent: 250,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    itemCount: CharactersData.roster.length,
-                    itemBuilder: (c, i) => _CharacterCard(
-                      character: CharactersData.roster[i],
-                      owned: owned.isUnlocked(CharactersData.roster[i]),
-                      selected: owned.selectedId == CharactersData.roster[i].id,
-                    ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final columns = width >= 700
+                  ? 4
+                  : width >= 500
+                      ? 3
+                      : 2;
+              final horizontalPadding =
+                  NeonLayout.isCompact(context) ? 12.0 : 20.0;
+              final itemGap = NeonLayout.isCompact(context) ? 10.0 : 14.0;
+              final cardWidth =
+                  (width - horizontalPadding * 2 - itemGap * (columns - 1)) /
+                      columns;
+              final cardHeight =
+                  (cardWidth * 1.56).clamp(252.0, 288.0).toDouble();
+
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 860),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 14),
+                      Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'CHARACTER STORE',
+                            style: NeonTextStyle.heading.copyWith(
+                              fontSize: NeonLayout.isCompact(context) ? 22 : 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      AnimatedBuilder(
+                        animation: coins,
+                        builder: (_, __) => Semantics(
+                          label: 'Coin balance: ${coins.coins}',
+                          child: Text(
+                            '${coins.coins} COINS AVAILABLE',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: NeonTextStyle.label.copyWith(
+                              color: NeonPalette.yellow,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: _onScrollNotification,
+                          child: GridView.builder(
+                            controller: _scrollController,
+                            // A small cache avoids image/layout churn without
+                            // keeping an entire 24-card grid alive.
+                            cacheExtent: 240,
+                            padding: EdgeInsets.fromLTRB(
+                              horizontalPadding,
+                              0,
+                              horizontalPadding,
+                              12,
+                            ),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: columns,
+                              mainAxisExtent: cardHeight,
+                              crossAxisSpacing: itemGap,
+                              mainAxisSpacing: itemGap,
+                            ),
+                            itemCount: CharactersData.roster.length,
+                            itemBuilder: (context, index) => _CharacterCard(
+                              key: ValueKey(CharactersData.roster[index].id),
+                              character: CharactersData.roster[index],
+                              ownedService: owned,
+                              coinService: coins,
+                              previewFrame: _previewFrame,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: NeonBackButton(
+                          label: 'BACK',
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const BannerAdSlot(),
+                      const SizedBox(height: 12),
+                    ],
                   ),
                 ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CharacterCard extends StatefulWidget {
+  const _CharacterCard({
+    super.key,
+    required this.character,
+    required this.ownedService,
+    required this.coinService,
+    required this.previewFrame,
+  });
+
+  final Character character;
+  final OwnedCharactersService ownedService;
+  final CoinService coinService;
+  final ValueListenable<CharacterSpriteFrame> previewFrame;
+
+  @override
+  State<_CharacterCard> createState() => _CharacterCardState();
+}
+
+class _CharacterCardState extends State<_CharacterCard> {
+  bool _busy = false;
+  late final AchievementDefinition? _achievementDef;
+
+  @override
+  void initState() {
+    super.initState();
+    final definitions = AchievementDefinition.all
+        .where((definition) =>
+            definition.achievement.characterUnlockId == widget.character.id)
+        .toList(growable: false);
+    _achievementDef = definitions.isEmpty ? null : definitions.first;
+    widget.ownedService.changes.addListener(_onOwnershipChange);
+  }
+
+  @override
+  void dispose() {
+    widget.ownedService.changes.removeListener(_onOwnershipChange);
+    super.dispose();
+  }
+
+  void _onOwnershipChange() {
+    if (widget.ownedService.changes.value.affects(widget.character.id) &&
+        mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _unlock() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final unlocked = await widget.ownedService.unlock(widget.character);
+      if (!mounted) return;
+      if (!unlocked) {
+        _toast('Not enough coins');
+        return;
+      }
+      sl<AudioService>().playSfx(Sfx.characterUnlock);
+      await widget.ownedService.select(widget.character);
+    } catch (_) {
+      if (mounted) _toast('Unable to unlock this pilot. Please try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _select() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.ownedService.select(widget.character);
+      sl<AudioService>().playSfx(Sfx.buttonClick);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _toast(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final owned = widget.ownedService.isUnlocked(widget.character);
+    final selected = widget.ownedService.selectedId == widget.character.id;
+    final themeColors = NeonTheme.colors(context);
+    final border = selected
+        ? NeonPalette.green
+        : owned
+            ? widget.character.primary
+            : themeColors.disabled;
+
+    return RepaintBoundary(
+      child: Semantics(
+        container: true,
+        label:
+            '${widget.character.name}, ${selected ? 'equipped' : owned ? 'owned' : 'locked'}',
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(NeonLayout.panelRadius),
+            color: themeColors.panel.withValues(alpha: 0.92),
+            border: Border.all(color: border, width: selected ? 2.5 : 1.25),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: NeonPalette.green.withValues(alpha: 0.34),
+                      blurRadius: 14,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            children: [
+              CharacterAvatar(
+                character: widget.character,
+                size: 74,
+                selected: selected,
+                locked: !owned,
+                frameScale: widget.character.shopFrameScale,
+                artworkScale: widget.character.shopArtworkScale,
+                showBackdrop: false,
+                showGlow: false,
+                presentation: CharacterAvatarPresentation.fullBird,
+                previewFrame: widget.previewFrame,
               ),
-              const SizedBox(height: 12),
-              NeonBackButton(
-                  label: 'BACK', onPressed: () => Navigator.pop(context)),
-              const SizedBox(height: 12),
-              const BannerAdSlot(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 6),
+              Text(
+                widget.character.name.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: NeonTextStyle.label.copyWith(fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              _StatMini(stats: widget.character.stats),
+              const SizedBox(height: 5),
+              if (!owned && _achievementDef != null)
+                Text(
+                  _achievementDef.achievement.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: NeonTextStyle.body.copyWith(
+                    fontSize: 10,
+                    color: themeColors.disabled,
+                  ),
+                )
+              else
+                Text(
+                  owned ? 'READY TO FLY' : widget.character.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: NeonTextStyle.body.copyWith(
+                    fontSize: 10,
+                    color: selected ? NeonPalette.green : themeColors.disabled,
+                  ),
+                ),
+              const Spacer(),
+              _ActionButton(
+                character: widget.character,
+                owned: owned,
+                selected: selected,
+                busy: _busy,
+                coinService: widget.coinService,
+                onUnlock: _unlock,
+                onSelect: _select,
+              ),
             ],
           ),
         ),
       ),
     );
   }
-}
-
-class _CharacterCard extends StatelessWidget {
-  const _CharacterCard({
-    required this.character,
-    required this.owned,
-    required this.selected,
-  });
-
-  final Character character;
-  final bool owned;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final coins = sl<CoinService>();
-    final ownedSvc = sl<OwnedCharactersService>();
-    final themeColors = NeonTheme.colors(context);
-    final border = selected
-        ? NeonPalette.green
-        : owned
-            ? character.primary
-            : themeColors.disabled;
-
-    final achievementDef = AchievementDefinition.all
-        .where((d) => d.achievement.characterUnlockId == character.id)
-        .toList();
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: themeColors.panel.withOpacity(0.9),
-        border: Border.all(color: border, width: selected ? 3 : 1.5),
-        boxShadow: selected
-            ? [
-                BoxShadow(
-                    color: NeonPalette.green.withOpacity(0.4), blurRadius: 16)
-              ]
-            : null,
-      ),
-      child: Column(
-        children: [
-          _CharacterPreview(character: character, size: 54),
-          const SizedBox(height: 6),
-          Text(character.name.toUpperCase(),
-              style: NeonTextStyle.label.copyWith(fontSize: 13)),
-          const SizedBox(height: 4),
-          _StatMini(stats: character.stats),
-          const SizedBox(height: 6),
-          if (!owned && achievementDef.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                achievementDef.first.achievement.description,
-                style: NeonTextStyle.body.copyWith(fontSize: 11),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          Expanded(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: _ActionButton(
-                character: character,
-                owned: owned,
-                selected: selected,
-                onUnlock: () async {
-                  final ok = await ownedSvc.unlock(character);
-                  if (ok) {
-                    sl<AudioService>().playSfx(Sfx.characterUnlock);
-                    await ownedSvc.select(character);
-                  } else {
-                    _toast(context, 'Not enough coins');
-                  }
-                },
-                onSelect: () async {
-                  await ownedSvc.select(character);
-                  sl<AudioService>().playSfx(Sfx.buttonClick);
-                },
-                coins: coins.coins,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _toast(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-}
-
-class _CharacterPreview extends StatelessWidget {
-  const _CharacterPreview({required this.character, required this.size});
-  final Character character;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            character.primary.withOpacity(0.28),
-            Colors.transparent,
-          ],
-        ),
-      ),
-      child: CustomPaint(
-        painter: _BirdPreviewPainter(
-          primary: character.primary,
-          accent: character.accent,
-        ),
-      ),
-    );
-  }
-}
-
-class _BirdPreviewPainter extends CustomPainter {
-  _BirdPreviewPainter({required this.primary, required this.accent});
-  final Color primary;
-  final Color accent;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    drawNeonBird(
-      canvas,
-      Offset(size.width / 2, size.height / 2),
-      size.width * 0.82,
-      primary: primary,
-      accent: accent,
-      wingPhase: -0.6,
-      glow: 9,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _BirdPreviewPainter old) =>
-      old.primary != primary || old.accent != accent;
 }
 
 class _StatMini extends StatelessWidget {
@@ -231,19 +379,15 @@ class _StatMini extends StatelessWidget {
       ('HIT', 2 - stats.hitboxScale),
       ('MAG', stats.coinAttraction),
     ];
-    return Wrap(
-      spacing: 4,
-      runSpacing: 2,
-      alignment: WrapAlignment.center,
-      children: items
-          .map((e) => Text(
-                '${e.$1} ${(e.$2).toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 9,
-                  letterSpacing: 0.5,
-                ),
-              ))
-          .toList(),
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        items
+            .map((item) => '${item.$1} ${item.$2.toStringAsFixed(2)}')
+            .join('  '),
+        maxLines: 1,
+        style: const TextStyle(fontSize: 9, letterSpacing: 0.35),
+      ),
     );
   }
 }
@@ -253,99 +397,64 @@ class _ActionButton extends StatelessWidget {
     required this.character,
     required this.owned,
     required this.selected,
+    required this.busy,
+    required this.coinService,
     required this.onUnlock,
     required this.onSelect,
-    required this.coins,
   });
 
   final Character character;
   final bool owned;
   final bool selected;
+  final bool busy;
+  final CoinService coinService;
   final VoidCallback onUnlock;
   final VoidCallback onSelect;
-  final int coins;
 
   @override
   Widget build(BuildContext context) {
-    final themeColors = NeonTheme.colors(context);
     if (selected) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        constraints:
+            const BoxConstraints(minHeight: NeonLayout.minimumTapTarget),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(NeonLayout.buttonRadius),
           border: Border.all(color: NeonPalette.green),
+          color: NeonPalette.green.withValues(alpha: 0.1),
         ),
-        child: const Text('EQUIPPED',
-            style: TextStyle(color: NeonPalette.green, fontSize: 12)),
+        child: const Text(
+          'EQUIPPED',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: NeonPalette.green, fontSize: 12),
+        ),
       );
     }
     if (owned) {
-      return GestureDetector(
-        onTap: onSelect,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: character.primary.withOpacity(0.18),
-            border: Border.all(color: character.primary),
-          ),
-          child: Text('EQUIP',
-              style: TextStyle(color: character.primary, fontSize: 12)),
-        ),
+      return NeonButton(
+        label: 'EQUIP',
+        icon: Icons.check_circle_outline_rounded,
+        color: character.primary,
+        fontSize: 12,
+        enabled: !busy,
+        isLoading: busy,
+        onPressed: onSelect,
       );
     }
-    final affordable = coins >= character.price;
-    return GestureDetector(
-      onTap: affordable ? onUnlock : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: affordable
-              ? NeonPalette.yellow.withOpacity(0.15)
-              : themeColors.disabled.withOpacity(0.10),
-          border: Border.all(
-            color: affordable ? NeonPalette.yellow : themeColors.disabled,
-          ),
-        ),
-        child: Text(
-          '${character.price} ◉',
-          style: TextStyle(
-            color: affordable ? NeonPalette.yellow : themeColors.disabled,
-            fontSize: 12,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Reusable neon back button.
-class NeonBackButton extends StatelessWidget {
-  const NeonBackButton(
-      {super.key, required this.label, required this.onPressed});
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: () {
-        sl<AudioService>().playSfx(Sfx.buttonClick);
-        HapticFeedback.selectionClick();
-        onPressed();
-      },
-      child: Container(
-        width: 200,
-        height: 48,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: scheme.primary.withOpacity(0.6)),
-          color: scheme.primary.withOpacity(0.08),
-        ),
-        child: Text(label, style: NeonTextStyle.label),
+    // Coin changes rebuild only this compact action, never the bird artwork,
+    // card decoration, or the rest of the grid.
+    return AnimatedBuilder(
+      animation: coinService,
+      builder: (_, __) => NeonButton(
+        label: 'UNLOCK ${character.price}',
+        icon: Icons.monetization_on_outlined,
+        color: NeonPalette.yellow,
+        fontSize: 11,
+        enabled: coinService.coins >= character.price && !busy,
+        isLoading: busy,
+        onPressed: onUnlock,
       ),
     );
   }

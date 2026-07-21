@@ -15,12 +15,28 @@ class Coin extends PositionComponent {
   bool active = false;
   double speed = 150;
   double _spin = 0;
+  double _baseY = 0;
+  double _motionAmplitude = 0;
+  double _motionSpeed = 0;
+  double _motionPhase = 0;
+  bool _followsGap = false;
 
-  void spawn({required Vector2 position, required double speed}) {
+  void spawn({
+    required Vector2 position,
+    required double speed,
+    double motionAmplitude = 0,
+    double motionSpeed = 0,
+    double motionPhase = 0,
+  }) {
     this.position.setFrom(position);
     this.speed = speed;
     active = true;
     _spin = 0;
+    _baseY = position.y;
+    _motionAmplitude = motionAmplitude;
+    _motionSpeed = motionSpeed;
+    _motionPhase = motionPhase;
+    _followsGap = motionAmplitude > 0 && motionSpeed > 0;
   }
 
   void recycle() {
@@ -32,11 +48,16 @@ class Coin extends PositionComponent {
   void update(double dt) {
     if (!active) return;
     position.x -= speed * dt;
+    if (_followsGap) {
+      _motionPhase += dt * _motionSpeed;
+      position.y = _baseY + sin(_motionPhase) * _motionAmplitude;
+    }
     _spin += dt * 4;
   }
 
   /// Moves the coin toward [target] (the player) for the magnet effect.
   void magnetize(Vector2 target, double factor) {
+    _followsGap = false;
     position.lerp(target, factor);
   }
 

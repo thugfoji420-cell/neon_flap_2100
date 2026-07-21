@@ -68,11 +68,15 @@ class PublicProfileModel {
 
     final totalGames = (playerDoc['totalGames'] as num?)?.toInt() ?? 0;
     final totalFlaps = (playerDoc['totalFlaps'] as num?)?.toInt() ??
-        (playerDoc['xp'] as num?)?.toInt() ?? 0;
+        (playerDoc['xp'] as num?)?.toInt() ??
+        0;
     final totalScoreAll = (playerDoc['totalScoreAll'] as num?)?.toInt() ??
-        (playerDoc['totalScore'] as num?)?.toInt() ?? 0;
-    final maxCoinsSingleRun = (playerDoc['maxCoinsSingleRun'] as num?)?.toInt() ??
-        (playerDoc['bestCoins'] as num?)?.toInt() ?? 0;
+        (playerDoc['totalScore'] as num?)?.toInt() ??
+        0;
+    final maxCoinsSingleRun =
+        (playerDoc['maxCoinsSingleRun'] as num?)?.toInt() ??
+            (playerDoc['bestCoins'] as num?)?.toInt() ??
+            0;
 
     DateTime lastActive;
     final lastLoginRaw = playerDoc['lastLogin'];
@@ -144,7 +148,10 @@ class PublicProfileModel {
       achievements: resolvedAchievements,
       currentAvatar: CharacterSummary(
         id: currentAvatarId,
-        name: currentAvatarId.split('_').map((w) => w[0].toUpperCase() + w.substring(1)).join(' '),
+        name: currentAvatarId
+            .split('_')
+            .map((w) => w[0].toUpperCase() + w.substring(1))
+            .join(' '),
         primaryHex: currentAvatarId,
         accentHex: currentAvatarId,
       ),

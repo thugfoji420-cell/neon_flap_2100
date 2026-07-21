@@ -27,7 +27,7 @@ class _DifficultySheet extends StatelessWidget {
     final modes = [
       (
         DifficultyMode.easy,
-        'Largest gaps · slowest speed · no obstacles',
+        'Largest gaps · slowest speed · static pipes',
         NeonPalette.green,
       ),
       (

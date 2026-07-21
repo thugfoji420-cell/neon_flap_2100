@@ -19,7 +19,11 @@ class AuthService extends ChangeNotifier {
   AuthService(this._auth, {GoogleSignIn? googleSignIn})
       : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
 
-  final FirebaseAuth _auth;
+  AuthService.disabled({GoogleSignIn? googleSignIn})
+      : _auth = null,
+        _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+
+  final FirebaseAuth? _auth;
   final GoogleSignIn _googleSignIn;
 
   User? _user;
@@ -35,7 +39,9 @@ class AuthService extends ChangeNotifier {
   /// True when Firebase already holds a persisted, non-anonymous user from a
   /// previous sign-in (i.e. the player does not need to pick an account again).
   bool get hasPersistedUser {
-    final user = _auth.currentUser;
+    final auth = _auth;
+    if (auth == null) return false;
+    final user = auth.currentUser;
     return user != null && !user.isAnonymous;
   }
 
@@ -44,7 +50,13 @@ class AuthService extends ChangeNotifier {
   /// restarts) and refreshes the token if needed. Returns the [User] if a
   /// sessions exists, or `null` if the player must sign in.
   Future<User?> restoreSession() async {
-    _user = _auth.currentUser;
+    final auth = _auth;
+    if (auth == null) {
+      _user = null;
+      notifyListeners();
+      return null;
+    }
+    _user = auth.currentUser;
     if (_user == null) {
       notifyListeners();
       return null;
@@ -55,7 +67,7 @@ class AuthService extends ChangeNotifier {
       final u = _user;
       if (u == null) return null; // already null, shouldn't reach here
       await u.reload();
-      _user = _auth.currentUser;
+      _user = auth.currentUser;
       final refreshed = _user;
       if (refreshed != null && refreshed.isAnonymous) {
         // Anonymous-only sessions are not valid for persistent Google profiles.
@@ -75,6 +87,13 @@ class AuthService extends ChangeNotifier {
   /// Firebase, so every Google account owns an isolated cloud profile. Returns
   /// the Firebase [User] on success, or `null` if the flow was cancelled/failed.
   Future<User?> signInWithGoogle() async {
+    final auth = _auth;
+    if (auth == null) {
+      _error =
+          'Google Sign-In is unavailable right now. Play Offline still works.';
+      notifyListeners();
+      return null;
+    }
     try {
       await _googleSignIn.initialize(serverClientId: _webClientId);
 
@@ -114,7 +133,7 @@ class AuthService extends ChangeNotifier {
 
       // Always use signInWithCredential so the Google UID is the persistent,
       // authoritative identity for this account (no anonymous linking).
-      final result = await _auth.signInWithCredential(credential);
+      final result = await auth.signInWithCredential(credential);
       _user = result.user;
 
       _error = null;
@@ -161,7 +180,7 @@ class AuthService extends ChangeNotifier {
       // ignore Google sign-out failures
     }
     try {
-      await _auth.signOut();
+      await _auth?.signOut();
     } catch (_) {
       // ignore Firebase sign-out failures
     }

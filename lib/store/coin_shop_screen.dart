@@ -7,8 +7,8 @@ import 'package:neon_flap1_game/models/store_product.dart';
 import 'package:neon_flap1_game/services/audio_service.dart';
 import 'package:neon_flap1_game/services/billing_service.dart';
 import 'package:neon_flap1_game/services/coin_service.dart';
-import 'package:neon_flap1_game/store/character_store_screen.dart';
 import 'package:neon_flap1_game/widgets/animated_background.dart';
+import 'package:neon_flap1_game/widgets/neon_button.dart';
 
 /// Coin Shop powered by Google Play Billing. Purchases are consumable coin
 /// packs; the balance is credited only after a verified, acknowledged purchase.
@@ -152,36 +152,30 @@ class _PackRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${pack.coins} COINS',
-                    style: NeonTextStyle.heading.copyWith(fontSize: 18)),
-                Text(canBuy ? 'Tap to purchase' : 'Store unavailable',
-                    style: NeonTextStyle.body.copyWith(fontSize: 12)),
+                Text(
+                  '${pack.coins} COINS',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: NeonTextStyle.heading.copyWith(fontSize: 18),
+                ),
+                Text(
+                  canBuy ? 'Tap to purchase' : 'Store unavailable',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: NeonTextStyle.body.copyWith(fontSize: 12),
+                ),
               ],
             ),
           ),
-          GestureDetector(
-            onTap: canBuy
-                ? () {
-                    sl<AudioService>().playSfx(Sfx.buttonClick);
-                    billing.buy(pack);
-                  }
-                : null,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: canBuy
-                    ? NeonPalette.yellow.withOpacity(0.2)
-                    : themeColors.disabled.withOpacity(0.10),
-                border: Border.all(
-                  color: canBuy ? NeonPalette.yellow : themeColors.disabled,
-                ),
-              ),
-              child: Text(price,
-                  style: TextStyle(
-                    color: canBuy ? NeonPalette.yellow : themeColors.disabled,
-                    fontWeight: FontWeight.w700,
-                  )),
+          SizedBox(
+            width: 112,
+            child: NeonButton(
+              label: price,
+              icon: Icons.shopping_cart_checkout_rounded,
+              color: NeonPalette.yellow,
+              fontSize: 12,
+              enabled: canBuy,
+              onPressed: () => billing.buy(pack),
             ),
           ),
         ],

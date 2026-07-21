@@ -69,8 +69,7 @@ void main() {
   // MainMenuScreen
   // ---------------------------------------------------------------------------
   group('MainMenuScreen', () {
-    testWidgets('renders with all menu buttons',
-        (WidgetTester tester) async {
+    testWidgets('renders with all menu buttons', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.darkTheme,
@@ -104,8 +103,7 @@ void main() {
       expect(find.textContaining('PILOT:'), findsOneWidget);
     });
 
-    testWidgets('has proper layout with SafeArea',
-        (WidgetTester tester) async {
+    testWidgets('has proper layout with SafeArea', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.darkTheme,
@@ -163,8 +161,7 @@ void main() {
       expect(find.text('DELETE FOREVER'), findsOneWidget);
     });
 
-    testWidgets('cancel dismisses delete dialog',
-        (WidgetTester tester) async {
+    testWidgets('cancel dismisses delete dialog', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.darkTheme,
@@ -207,8 +204,7 @@ void main() {
       expect(find.text('LOG OUT'), findsOneWidget);
     });
 
-    testWidgets('exit shows confirmation dialog',
-        (WidgetTester tester) async {
+    testWidgets('exit shows confirmation dialog', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.darkTheme,

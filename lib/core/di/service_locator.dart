@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,6 +23,7 @@ import 'package:neon_flap1_game/firebase/ad_reward_service.dart';
 import 'package:neon_flap1_game/services/coin_service.dart';
 import 'package:neon_flap1_game/services/coin_sync_service.dart';
 import 'package:neon_flap1_game/services/leaderboard_service.dart';
+import 'package:neon_flap1_game/services/offline_profile_service.dart';
 import 'package:neon_flap1_game/services/owned_characters_service.dart';
 import 'package:neon_flap1_game/services/settings_service.dart';
 import 'package:neon_flap1_game/services/storage_service.dart';
@@ -33,10 +36,14 @@ import 'package:neon_flap1_game/core/theme/theme_controller.dart';
 final GetIt sl = GetIt.instance;
 
 /// Bootstraps all services and loads persisted state before the UI starts.
-Future<void> setupServiceLocator() async {
+Future<void> setupServiceLocator({bool firebaseEnabled = true}) async {
   final prefs = await SharedPreferences.getInstance();
   final storage = StorageService(prefs);
   sl.registerSingleton<StorageService>(storage);
+
+  final offlineProfile = OfflineProfileService(storage);
+  await offlineProfile.load();
+  sl.registerSingleton<OfflineProfileService>(offlineProfile);
 
   // Theme selection is loaded before the app starts to avoid a visible flash
   // from the system theme to a previously selected preference.
@@ -77,8 +84,21 @@ Future<void> setupServiceLocator() async {
   final interstitialAdService = InterstitialAdService(storage, adAnalytics);
   final appOpenAdService = AppOpenAdService(adAnalytics);
   final rewardedAdService = RewardedAdService(storage, adAnalytics);
+  FirebaseAuth? firebaseAuth;
+  FirebaseFirestore? firestore;
+  if (firebaseEnabled) {
+    try {
+      firebaseAuth = FirebaseAuth.instance;
+      firestore = FirebaseFirestore.instance;
+    } catch (e) {
+      debugPrint('Firebase services unavailable during setup: $e');
+      firebaseAuth = null;
+      firestore = null;
+    }
+  }
+
   final adRewardSync =
-      AdRewardService(FirebaseRefs(FirebaseFirestore.instance));
+      AdRewardService(firestore == null ? null : FirebaseRefs(firestore));
   final adService = AdService(
     adAnalytics,
     interstitialAdService,
@@ -86,52 +106,57 @@ Future<void> setupServiceLocator() async {
     rewardedAdService,
     adRewardSync,
   );
-  await adService.init();
+  try {
+    await adService.init().timeout(const Duration(seconds: 8));
+  } catch (e) {
+    debugPrint('Ad service unavailable during setup: $e');
+  }
   sl.registerSingleton<AdService>(adService);
   final billingService = BillingService(coins);
-  await billingService.init();
+  try {
+    await billingService.init().timeout(const Duration(seconds: 8));
+  } catch (e) {
+    debugPrint('Billing service unavailable during setup: $e');
+  }
   sl.registerSingleton<BillingService>(billingService);
 
-  // Firebase: sign in anonymously, load/create the cloud profile and adopt the
-  // best cloud values (coins / high score) so progress is restored.
-  final authService = AuthService(FirebaseAuth.instance);
+  // Firebase services are registered even when cloud startup fails, but in that
+  // case they expose a disabled sign-in path while offline guest play remains.
+  final authService =
+      firebaseAuth == null ? AuthService.disabled() : AuthService(firebaseAuth);
   sl.registerSingleton<AuthService>(authService);
 
   final firebaseService = FirebaseService(
-    FirebaseAuth.instance,
-    FirebaseFirestore.instance,
+    firebaseAuth,
+    firestore,
     authService,
+    offlineProfile,
   );
-  final bootstrap = await firebaseService.bootstrap(
-    localCoins: coins.coins,
-    localHighScore: coins.bestScore,
-    avatarId: owned.selectedId,
-  );
-  await firebaseService.applyBootstrap(bootstrap, coins);
   sl.registerSingleton<FirebaseService>(firebaseService);
 
   final usernameGenerator = PlayerNameGeneratorService(
-    firestore: FirebaseFirestore.instance,
+    firestore: firestore,
   );
   sl.registerSingleton<PlayerNameGeneratorService>(usernameGenerator);
 
-  final publicProfile = PublicProfileService(FirebaseFirestore.instance);
-  sl.registerSingleton<PublicProfileService>(publicProfile);
+  if (firestore != null) {
+    final publicProfile = PublicProfileService(firestore);
+    sl.registerSingleton<PublicProfileService>(publicProfile);
+  }
 
   final coinSync = CoinSyncService(storage);
-  coinSync.attach();
   sl.registerSingleton<CoinSyncService>(coinSync);
 
   // Auto-sync pending coins when the app returns from the background or the OS
   // reports restored connectivity (covers offline → online transitions).
-  _lifecycleObserver = _CoinSyncLifecycle(coinSync);
+  _lifecycleObserver = _AppLifecycleObserver(coinSync, audio);
   // Guaranteed non-null: assigned on the line above (no async gap).
   WidgetsBinding.instance.addObserver(_lifecycleObserver!);
 
   _onOwnedChanged = () {
     firebaseService.syncInventory(
       selectedBird: owned.selectedId,
-      ownedBirds: owned.unlocked.toList(),
+      ownedBirds: owned.allKnownOwnedIds.toList(),
     );
   };
   owned.addListener(_onOwnedChanged!);
@@ -147,8 +172,16 @@ Future<void> setupServiceLocator() async {
   settings.addListener(_onSettingsChanged!);
 
   _onAudioSettingsChanged = () {
+    final currentTrack = audio.currentTrack;
     audio.setMusicVolume(settings.settings.musicVolume);
     audio.setSfxVolume(settings.settings.sfxVolume);
+    if (currentTrack?.category == MusicCategory.menu &&
+        currentTrack != settings.menuTrack) {
+      audio.playMusic(settings.menuTrack);
+    } else if (currentTrack?.category == MusicCategory.gameplay &&
+        currentTrack != settings.gameplayTrack) {
+      audio.playMusic(settings.gameplayTrack);
+    }
   };
   settings.addListener(_onAudioSettingsChanged!);
 }
@@ -190,21 +223,29 @@ void disposeServiceLocator() {
 /// Pushes any pending coin total to the cloud when the app resumes from the
 /// background, so coins collected before an interruption are never lost and any
 /// offline queue is flushed as soon as the device is back online.
-class _CoinSyncLifecycle extends WidgetsBindingObserver {
-  _CoinSyncLifecycle(this._coinSync);
+class _AppLifecycleObserver extends WidgetsBindingObserver {
+  _AppLifecycleObserver(this._coinSync, this._audio);
   final CoinSyncService _coinSync;
+  final AudioService _audio;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _coinSync.onConnectivityRestored();
+      unawaited(_audio.resumeAfterAppLifecycle());
+      return;
+    }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_audio.pauseForAppLifecycle());
     }
   }
 }
 
 /// Holds the lifecycle observer so it can be removed on teardown. Exposed for
 /// test cleanup; in production the observer lives for the app process.
-_CoinSyncLifecycle? _lifecycleObserver;
+_AppLifecycleObserver? _lifecycleObserver;
 
 /// ChangeNotifier listener callbacks registered during [setupServiceLocator].
 /// Stored so [disposeServiceLocator] can remove them.

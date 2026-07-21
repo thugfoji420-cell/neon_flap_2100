@@ -83,12 +83,17 @@ class PlayerNameRepository {
   /// A doc that points back to [uid] is considered available (their own name).
   Future<bool> isTaken(String lower, {required String uid}) async {
     try {
-      final snap = await _playerNameDoc(lower).get().timeout(const Duration(seconds: 10));
+      final snap = await _playerNameDoc(lower)
+          .get()
+          .timeout(const Duration(seconds: 10));
       if (!snap.exists) return false;
       final owner = snap.data()?['uid'] as String?;
       return owner != uid;
     } on FirebaseException catch (e) {
-      if (kDebugMode) debugPrint('FIRESTORE ISTAKEN ERROR code=${e.code} message=${e.message}');
+      if (kDebugMode) {
+        debugPrint(
+            'FIRESTORE ISTAKEN ERROR code=${e.code} message=${e.message}');
+      }
       rethrow;
     }
   }
@@ -130,12 +135,17 @@ class PlayerNameRepository {
           tx.delete(_playerNameDoc(previousLower));
         }
       }).timeout(const Duration(seconds: 10));
-      if (kDebugMode) debugPrint('PlayerNameRepository.claim: username=$lower claimed for uid=${profile.uid}');
+      if (kDebugMode) {
+        debugPrint(
+            'PlayerNameRepository.claim: username=$lower claimed for uid=${profile.uid}');
+      }
       return true;
     } on _PlayerNameTakenException {
       return false;
     } on FirebaseException catch (e) {
-      if (kDebugMode) debugPrint('FIRESTORE CLAIM ERROR code=${e.code} message=${e.message}');
+      if (kDebugMode) {
+        debugPrint('FIRESTORE CLAIM ERROR code=${e.code} message=${e.message}');
+      }
       return false;
     }
   }

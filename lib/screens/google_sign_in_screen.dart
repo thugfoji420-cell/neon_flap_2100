@@ -11,15 +11,16 @@ import 'package:neon_flap1_game/routing/route_transitions.dart';
 import 'package:neon_flap1_game/screens/choose_player_name_screen.dart';
 import 'package:neon_flap1_game/screens/main_menu_screen.dart';
 import 'package:neon_flap1_game/services/coin_service.dart';
+import 'package:neon_flap1_game/services/coin_sync_service.dart';
 import 'package:neon_flap1_game/services/owned_characters_service.dart';
+import 'package:neon_flap1_game/services/offline_profile_service.dart';
 import 'package:neon_flap1_game/widgets/animated_background.dart';
 import 'package:neon_flap1_game/widgets/neon_button.dart';
 
 /// Intermediate screen shown after the splash/ad flow.
 ///
-/// Offers a single entry point: "Continue with Google". If the user cancels
-/// the Google picker, the app still proceeds with the existing anonymous
-/// session so the game remains playable offline.
+/// Offers Google cloud sign-in and an explicit local guest mode for account-free
+/// offline play.
 class GoogleSignInScreen extends StatefulWidget {
   const GoogleSignInScreen({super.key});
 
@@ -29,9 +30,19 @@ class GoogleSignInScreen extends StatefulWidget {
 
 class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
   bool _loading = false;
+  String? _loadingMessage;
+
+  void _setLoading(bool value, {String? message}) {
+    if (!mounted) return;
+    setState(() {
+      _loading = value;
+      _loadingMessage = message;
+    });
+  }
 
   Future<void> _continueWithGoogle() async {
-    setState(() => _loading = true);
+    if (_loading) return;
+    _setLoading(true, message: 'Opening Google Sign-In...');
     try {
       final authService = sl<AuthService>();
       final user = await authService.signInWithGoogle();
@@ -45,13 +56,20 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
         if (err != null && mounted) {
           await _showErrorDialog('Sign-in failed', err);
         }
-        if (mounted) setState(() => _loading = false);
+        _setLoading(false);
         return;
       }
 
       final firebase = sl<FirebaseService>();
+      final hadOfflineProgress = firebase.hasPendingGuestMigration ||
+          firebase.hasCompletedOfflineProfile;
+      if (hadOfflineProgress) {
+        _setLoading(true, message: 'Saving offline progress...');
+        await firebase.prepareForOnlineSignIn();
+      }
 
       // Load (or create) this Google account's isolated cloud profile.
+      _setLoading(true, message: 'Loading cloud profile...');
       final coins = sl<CoinService>();
       final owned = sl<OwnedCharactersService>();
       final result = await firebase.bootstrap(
@@ -61,6 +79,9 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
       );
       if (!mounted) return;
       await firebase.applyBootstrap(result, coins);
+      // Logout detaches sync before account-local values are cleared. Reattach
+      // only after this account's cloud values have been adopted.
+      sl<CoinSyncService>().attach();
 
       // Brand-new Google accounts (no existing players/{uid} document) must
       // create a username before entering the game. Returning users — whose
@@ -71,11 +92,16 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
         final navigator = Navigator.of(context);
         await navigator.pushReplacement(
           fadeRoute(ChoosePlayerNameScreen(
-            onComplete: () {
+            onComplete: () async {
               if (kDebugMode) {
                 debugPrint(
                     'ChoosePlayerNameScreen.onComplete: navigating to MainMenu');
               }
+              await _syncOfflineProgressIfNeeded(
+                firebase: firebase,
+                hadOfflineProgress: hadOfflineProgress,
+                showMessage: false,
+              );
               navigator.pushReplacement(fadeRoute(const MainMenuScreen()));
             },
           )),
@@ -84,6 +110,10 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
         return;
       }
 
+      await _syncOfflineProgressIfNeeded(
+        firebase: firebase,
+        hadOfflineProgress: hadOfflineProgress,
+      );
       if (!mounted) return;
       replaceWithFade(context, const MainMenuScreen());
     } on FirebaseAuthException catch (e) {
@@ -102,9 +132,54 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _loading = false);
+        _setLoading(false);
       }
     }
+  }
+
+  Future<void> _playOffline() async {
+    if (_loading) return;
+    _setLoading(true, message: 'Creating offline profile...');
+    try {
+      final firebase = sl<FirebaseService>();
+      final result = await firebase.activateOfflineProfile();
+      if (!mounted) return;
+      if (result == OfflineProfileStart.ready) {
+        replaceWithFade(context, const MainMenuScreen());
+        return;
+      }
+
+      final navigator = Navigator.of(context);
+      await navigator.pushReplacement(
+        fadeRoute(ChoosePlayerNameScreen(
+          onComplete: () =>
+              navigator.pushReplacement(fadeRoute(const MainMenuScreen())),
+        )),
+      );
+    } finally {
+      if (mounted) _setLoading(false);
+    }
+  }
+
+  Future<bool> _syncOfflineProgressIfNeeded({
+    required FirebaseService firebase,
+    required bool hadOfflineProgress,
+    bool showMessage = true,
+  }) async {
+    if (!hadOfflineProgress) return true;
+    _setLoading(true, message: 'Syncing offline progress...');
+    final synced = await firebase.mergeOfflineProgress();
+    if (!mounted || !showMessage) return synced;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          synced
+              ? 'Offline progress synced successfully.'
+              : 'Google sign-in succeeded, but offline progress is still syncing safely.',
+        ),
+      ),
+    );
+    return synced;
   }
 
   Future<void> _showErrorDialog(String title, String message) async {
@@ -145,17 +220,48 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
                 NeonButton(
                   label: 'CONTINUE WITH GOOGLE',
                   color: scheme.primary,
+                  icon: Icons.login_rounded,
                   fontSize: 16,
                   onPressed: _loading ? null : _continueWithGoogle,
                 ),
+                const SizedBox(height: 14),
+                NeonButton(
+                  label: 'PLAY OFFLINE',
+                  color: NeonPalette.purple,
+                  icon: Icons.sports_esports_rounded,
+                  fontSize: 16,
+                  onPressed: _loading ? null : _playOffline,
+                ),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Play without an account. Progress stays on this device.',
+                    textAlign: TextAlign.center,
+                    style: NeonTextStyle.body.copyWith(
+                      fontSize: 13,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
                 if (_loading) ...[
                   const SizedBox(height: 24),
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                    ),
+                  Column(
+                    children: [
+                      const SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        (_loadingMessage ?? 'Connecting...').toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: NeonTextStyle.label.copyWith(fontSize: 11),
+                      ),
+                    ],
                   ),
                 ],
                 const SizedBox(height: 24),

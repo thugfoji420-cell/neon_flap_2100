@@ -25,8 +25,7 @@ class Achievement {
   final int rewardCoins;
   final String? characterUnlockId;
 
-  Achievement copyWithProgress(int progress) =>
-      Achievement(
+  Achievement copyWithProgress(int progress) => Achievement(
         id: id,
         title: title,
         description: description,
@@ -37,24 +36,24 @@ class Achievement {
       );
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'icon': icon,
-    'target': target,
-    'rewardCoins': rewardCoins,
-    'characterUnlockId': characterUnlockId,
-  };
+        'id': id,
+        'title': title,
+        'description': description,
+        'icon': icon,
+        'target': target,
+        'rewardCoins': rewardCoins,
+        'characterUnlockId': characterUnlockId,
+      };
 
   factory Achievement.fromJson(Map<String, dynamic> json) => Achievement(
-    id: json['id'] as String,
-    title: json['title'] as String,
-    description: json['description'] as String,
-    icon: json['icon'] as String,
-    target: json['target'] as int,
-    rewardCoins: json['rewardCoins'] as int,
-    characterUnlockId: json['characterUnlockId'] as String?,
-  );
+        id: json['id'] as String,
+        title: json['title'] as String,
+        description: json['description'] as String,
+        icon: json['icon'] as String,
+        target: json['target'] as int,
+        rewardCoins: json['rewardCoins'] as int,
+        characterUnlockId: json['characterUnlockId'] as String?,
+      );
 }
 
 class AchievementProgress {
@@ -69,10 +68,10 @@ class AchievementProgress {
   final bool claimed;
 
   Map<String, dynamic> toJson() => {
-    'achievementId': achievementId,
-    'progress': progress,
-    'claimed': claimed,
-  };
+        'achievementId': achievementId,
+        'progress': progress,
+        'claimed': claimed,
+      };
 
   factory AchievementProgress.fromJson(Map<String, dynamic> json) =>
       AchievementProgress(
@@ -383,32 +382,33 @@ class PlayerStats {
     int? totalFlaps,
     int? totalScoreAll,
     int? maxCoinsSingleRun,
-  }) => PlayerStats(
-    gamesPlayed: gamesPlayed ?? this.gamesPlayed,
-    bestScore: bestScore ?? this.bestScore,
-    totalCoinsCollected: totalCoinsCollected ?? this.totalCoinsCollected,
-    totalFlaps: totalFlaps ?? this.totalFlaps,
-    totalScoreAll: totalScoreAll ?? this.totalScoreAll,
-    maxCoinsSingleRun: maxCoinsSingleRun ?? this.maxCoinsSingleRun,
-  );
+  }) =>
+      PlayerStats(
+        gamesPlayed: gamesPlayed ?? this.gamesPlayed,
+        bestScore: bestScore ?? this.bestScore,
+        totalCoinsCollected: totalCoinsCollected ?? this.totalCoinsCollected,
+        totalFlaps: totalFlaps ?? this.totalFlaps,
+        totalScoreAll: totalScoreAll ?? this.totalScoreAll,
+        maxCoinsSingleRun: maxCoinsSingleRun ?? this.maxCoinsSingleRun,
+      );
 
   Map<String, dynamic> toJson() => {
-    'gamesPlayed': gamesPlayed,
-    'bestScore': bestScore,
-    'totalCoinsCollected': totalCoinsCollected,
-    'totalFlaps': totalFlaps,
-    'totalScoreAll': totalScoreAll,
-    'maxCoinsSingleRun': maxCoinsSingleRun,
-  };
+        'gamesPlayed': gamesPlayed,
+        'bestScore': bestScore,
+        'totalCoinsCollected': totalCoinsCollected,
+        'totalFlaps': totalFlaps,
+        'totalScoreAll': totalScoreAll,
+        'maxCoinsSingleRun': maxCoinsSingleRun,
+      };
 
   factory PlayerStats.fromJson(Map<String, dynamic> json) => PlayerStats(
-    gamesPlayed: json['gamesPlayed'] as int? ?? 0,
-    bestScore: json['bestScore'] as int? ?? 0,
-    totalCoinsCollected: json['totalCoinsCollected'] as int? ?? 0,
-    totalFlaps: json['totalFlaps'] as int? ?? 0,
-    totalScoreAll: json['totalScoreAll'] as int? ?? 0,
-    maxCoinsSingleRun: json['maxCoinsSingleRun'] as int? ?? 0,
-  );
+        gamesPlayed: json['gamesPlayed'] as int? ?? 0,
+        bestScore: json['bestScore'] as int? ?? 0,
+        totalCoinsCollected: json['totalCoinsCollected'] as int? ?? 0,
+        totalFlaps: json['totalFlaps'] as int? ?? 0,
+        totalScoreAll: json['totalScoreAll'] as int? ?? 0,
+        maxCoinsSingleRun: json['maxCoinsSingleRun'] as int? ?? 0,
+      );
 }
 
 class AchievementService {
@@ -513,9 +513,8 @@ class AchievementService {
         continue;
       }
 
-      final newProgress = current >= def.achievement.target
-          ? def.achievement.target
-          : current;
+      final newProgress =
+          current >= def.achievement.target ? def.achievement.target : current;
 
       if (newProgress != prevProgress) {
         _progress[def.achievement.id] = AchievementProgress(
@@ -535,10 +534,12 @@ class AchievementService {
         if (unlockId != null) {
           final character = CharactersData.byId(unlockId);
           if (!owned.isUnlocked(character)) {
-            final list = _storage.getStringList(StorageKeys.unlockedCharacters) ?? [];
+            final list =
+                _storage.getStringList(StorageKeys.unlockedCharacters) ?? [];
             if (!list.contains(character.id)) {
               list.add(character.id);
-              await _storage.setStringList(StorageKeys.unlockedCharacters, list);
+              await _storage.setStringList(
+                  StorageKeys.unlockedCharacters, list);
             }
           }
         }

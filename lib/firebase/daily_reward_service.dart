@@ -62,7 +62,7 @@ class DailyRewardStatus {
 class DailyRewardService {
   DailyRewardService(this._refs);
 
-  final FirebaseRefs _refs;
+  final FirebaseRefs? _refs;
   static const int _cooldownHours = 24;
   static const int _cooldownMillis = _cooldownHours * 60 * 60 * 1000;
   static const int _clockToleranceMillis = 5 * 60 * 1000; // 5 minutes
@@ -118,14 +118,46 @@ class DailyRewardService {
   /// Reads the current status. Uses Firestore as the authoritative source with
   /// local cache as fallback. Never throws.
   Future<DailyRewardStatus> status(String uid) async {
+    final refs = _refs;
+    if (refs == null) return _computeFromLocal(null);
+    // An offline claim has already granted coins locally. Reconcile its exact
+    // state before consulting an older cloud record, otherwise that stale
+    // record could offer the same reward a second time after reconnect.
+    if (_isPendingOffline() && !await _syncPendingClaim(uid)) {
+      return _computeFromLocal(null);
+    }
     try {
-      final snap = await _refs.dailyRewards.doc(uid).get();
+      final snap = await refs.dailyRewards.doc(uid).get();
       final data = snap.data();
-      return data != null
-          ? _computeFromServer(data)
-          : _computeFromLocal(null);
+      return data != null ? _computeFromServer(data) : _computeFromLocal(null);
     } catch (_) {
       return _computeFromLocal(null);
+    }
+  }
+
+  /// Writes a previously granted offline claim as absolute state. Retrying
+  /// this operation is idempotent, so it cannot advance the reward twice.
+  Future<bool> _syncPendingClaim(String uid) async {
+    final refs = _refs;
+    if (refs == null) return false;
+    final localMillis = _localLastClaimMillis();
+    if (localMillis == null) {
+      await _setPendingOffline(false);
+      return true;
+    }
+
+    final day = _storage.getInt(StorageKeys.dailyRewardClaimedDay) ?? 1;
+    final streak = _storage.getInt(StorageKeys.dailyRewardClaimedStreak) ?? 0;
+    try {
+      await refs.dailyRewards.doc(uid).set({
+        'day': day,
+        'streak': streak,
+        'lastClaim': Timestamp.fromMillisecondsSinceEpoch(localMillis),
+      }, SetOptions(merge: true));
+      await _setPendingOffline(false);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -146,7 +178,8 @@ class DailyRewardService {
     }
 
     final now = DateTime.now();
-    final elapsed = now.millisecondsSinceEpoch - lastClaim.millisecondsSinceEpoch;
+    final elapsed =
+        now.millisecondsSinceEpoch - lastClaim.millisecondsSinceEpoch;
     final canClaim = elapsed >= _cooldownMillis;
 
     if (canClaim) {
@@ -253,27 +286,42 @@ class DailyRewardService {
   /// - When offline: saves local cache and sets pending offline flag
   /// - Returns 0 if the claim is not yet available
   Future<int> claim(String uid) async {
+    final refs = _refs;
     final current = await status(uid);
     if (!current.canClaim) return 0;
 
     final newStreak = current.streak + 1;
 
-    try {
-      await _refs.dailyRewards.doc(uid).set({
-        'day': current.day,
-        'streak': newStreak,
-        'lastClaim': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      // Clear any offline pending flag since we succeeded.
-      await _setPendingOffline(false);
-    } catch (_) {
-      // Firestore write failed (offline). Save locally and flag as pending.
+    if (refs == null) {
       await _setPendingOffline(true);
+    } else {
+      try {
+        await refs.dailyRewards.doc(uid).set({
+          'day': current.day,
+          'streak': newStreak,
+          'lastClaim': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        // Clear any offline pending flag since we succeeded.
+        await _setPendingOffline(false);
+      } catch (_) {
+        // Firestore write failed (offline). Save locally and flag as pending.
+        await _setPendingOffline(true);
+      }
     }
 
     // Always save local cache so offline reads are consistent.
     await _saveLocalClaim(current.day, newStreak);
 
+    return current.rewardCoins;
+  }
+
+  Future<DailyRewardStatus> statusLocal() async => _computeFromLocal(null);
+
+  Future<int> claimLocal() async {
+    final current = _computeFromLocal(null);
+    if (!current.canClaim) return 0;
+    await _setPendingOffline(false);
+    await _saveLocalClaim(current.day, current.streak + 1);
     return current.rewardCoins;
   }
 }

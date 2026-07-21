@@ -66,10 +66,10 @@ class PlayerService {
         _profile = {
           'username': defaultName,
           'usernameLower': defaultName.toLowerCase(),
-          // New users start at 0 regardless of what's in local SharedPreferences
-          // (which may belong to a previously signed-in account on this device).
+          // New users never inherit device-local progress from another Google
+          // account on the same device.
           'coins': 0,
-          'highScore': localHighScore,
+          'highScore': 0,
           'bestDistance': 0,
           'level': 1,
           'xp': 0,
@@ -78,9 +78,9 @@ class PlayerService {
           'deaths': 0,
           'difficulty': 'Normal',
           'avatar': avatarId,
-          'country': WidgetsBinding
-                  .instance.platformDispatcher.locale.countryCode ??
-              'XX',
+          'country':
+              WidgetsBinding.instance.platformDispatcher.locale.countryCode ??
+                  'XX',
           'createdAt': FieldValue.serverTimestamp(),
           'lastLogin': FieldValue.serverTimestamp(),
         };
@@ -130,7 +130,9 @@ class PlayerService {
     if (currentUid == null) return;
     _profile['coins'] = coins;
     try {
-      await _refs.player(currentUid).set({'coins': coins}, SetOptions(merge: true));
+      await _refs
+          .player(currentUid)
+          .set({'coins': coins}, SetOptions(merge: true));
     } catch (_) {/* offline-tolerant */}
   }
 
@@ -199,6 +201,31 @@ class PlayerService {
     } catch (_) {/* offline-tolerant */}
   }
 
+  /// Reads the character inventory independently of the profile document.
+  /// A missing/corrupt inventory is represented as null so startup can retain
+  /// the safe default bird without blocking the player.
+  Future<({List<String> ownedBirds, String? selectedBird})?> loadInventory(
+    String uid,
+  ) async {
+    try {
+      final document = await _refs.inventory.doc(uid).get();
+      if (!document.exists) return null;
+      final data = document.data();
+      if (data == null) return null;
+      final rawOwned = data['ownedBirds'];
+      final owned = rawOwned is Iterable
+          ? rawOwned.whereType<String>().toList(growable: false)
+          : const <String>[];
+      return (
+        ownedBirds: owned,
+        selectedBird: data['selectedBird'] as String?,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('PlayerService.loadInventory failed: $e');
+      return null;
+    }
+  }
+
   /// achievements/{uid}
   Future<void> syncAchievements(Map<String, bool> unlocked) async {
     final currentUid = _uid;
@@ -217,6 +244,10 @@ class PlayerService {
     required bool sound,
     required bool vibration,
     String language = 'English',
+    double? musicVolume,
+    double? sfxVolume,
+    String? menuTrackId,
+    String? gameplayTrackId,
   }) async {
     final currentUid = _uid;
     if (currentUid == null) return;
@@ -226,6 +257,10 @@ class PlayerService {
         'sound': sound,
         'vibration': vibration,
         'language': language,
+        if (musicVolume != null) 'musicVolume': musicVolume,
+        if (sfxVolume != null) 'sfxVolume': sfxVolume,
+        if (menuTrackId != null) 'menuTrackId': menuTrackId,
+        if (gameplayTrackId != null) 'gameplayTrackId': gameplayTrackId,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (_) {/* offline-tolerant */}

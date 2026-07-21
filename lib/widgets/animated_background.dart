@@ -30,13 +30,11 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<NeonThemeColors>() ??
-        NeonThemeColors(
-          background: scheme.surface,
-          panel: scheme.surfaceContainerHigh,
-          field: scheme.surfaceContainerHighest,
-          disabled: scheme.onSurfaceVariant,
-        );
+    final colors = NeonTheme.colors(context);
+    final isLight = scheme.brightness == Brightness.light;
+    final backgroundGlow = isLight
+        ? Color.lerp(colors.background, widget.accent, 0.12)!
+        : widget.accent.withOpacity(0.10);
     return Stack(
       children: [
         Container(
@@ -45,7 +43,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
               center: const Alignment(0, -0.3),
               radius: 1.2,
               colors: [
-                widget.accent.withOpacity(0.10),
+                backgroundGlow,
                 colors.background,
               ],
             ),
@@ -55,7 +53,11 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
           animation: _ctrl,
           builder: (context, _) => Positioned.fill(
             child: CustomPaint(
-              painter: _GridPainter(_ctrl.value, widget.accent),
+              painter: _GridPainter(
+                _ctrl.value,
+                widget.accent,
+                opacity: isLight ? 0.13 : 0.18,
+              ),
             ),
           ),
         ),
@@ -66,15 +68,16 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
 }
 
 class _GridPainter extends CustomPainter {
-  _GridPainter(this.t, this.accent);
+  _GridPainter(this.t, this.accent, {required this.opacity});
   final double t;
   final Color accent;
+  final double opacity;
 
   @override
   void paint(Canvas canvas, Size size) {
     final horizon = size.height * 0.42;
     final paint = Paint()
-      ..color = accent.withOpacity(0.18)
+      ..color = accent.withOpacity(opacity)
       ..strokeWidth = 1;
 
     // Vertical converging lines.
@@ -97,5 +100,6 @@ class _GridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _GridPainter old) => old.t != t;
+  bool shouldRepaint(covariant _GridPainter old) =>
+      old.t != t || old.opacity != opacity || old.accent != accent;
 }
